@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Agente JEV</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap"
+    />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <div class="layout">
+      <nav class="nav"><a href="/" aria-current="page">Comparar</a><a href="/bench">Benchmark</a></nav>
+      <section class="console" aria-label="Consola de consulta">
+        <form class="console__form" id="ask-form">
+          <input
+            class="console__input"
+            id="question"
+            name="question"
+            type="text"
+            autocomplete="off"
+            placeholder="Pregunta algo sobre tus bases de datos…"
+            aria-label="Consulta"
+            required
+          />
+          <button class="console__send" type="submit" aria-label="Enviar consulta">
+            <img src="/assets/send.svg" width="20" height="20" alt="" />
+          </button>
+        </form>
+      </section>
+
+      <main class="grid">
+        <template id="card-template">
+          <article class="card">
+            <div>
+              <header class="card__header">
+                <div>
+                  <div class="card__title-row">
+                    <h2 class="card__title"></h2>
+                    <span class="status"></span>
+                  </div>
+                  <p class="card__subtitle"></p>
+                </div>
+                <span class="model-badge"></span>
+              </header>
+              <div class="card__body">
+                <div class="block block--user" hidden>
+                  <span class="label">Usuario</span>
+                  <p class="user-prompt"></p>
+                </div>
+                <div class="meta-pill" hidden>
+                  <span class="meta-pill__dot"></span>
+                  <span class="meta-pill__name">JEV</span>
+                  <span class="meta-pill__sep">·</span>
+                  <span class="meta-pill__databases"></span>
+                  <span class="meta-pill__sep">·</span>
+                  <span class="meta-pill__confidence"></span>
+                </div>
+                <div class="block block--assistant">
+                  <span class="label">Asistente</span>
+                  <p class="response"></p>
+                </div>
+                <div class="block block--queries" hidden>
+                  <span class="label">Consultas SQL</span>
+                  <ol class="queries"></ol>
+                </div>
+              </div>
+            </div>
+            <footer class="metrics">
+              <div>
+                <span class="label">Tiempo de respuesta</span>
+                <p class="metrics__time"><span class="metrics__seconds">–</span><span class="metrics__unit">s</span></p>
+                <span class="metrics__detail metrics__stages">–</span>
+              </div>
+              <div class="metrics__tokens">
+                <span class="metrics__count">– tokens</span>
+                <span class="metrics__detail metrics__split">entrada – · salida –</span>
+              </div>
+            </footer>
+          </article>
+        </template>
+      </main>
+    </div>
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>

@@ -1,0 +1,36 @@
+{
+  "name": "system-one-sql-agent",
+  "version": "0.1.0",
+  "description": "Text-to-SQL agent that uses a System One model to route questions to the right database before an LLM writes the query",
+  "scripts": {
+    "catalog": "tsx scripts/build-catalog.ts",
+    "ask": "tsx src/index.ts",
+    "typecheck": "tsc --noEmit",
+    "dev": "tsx watch src/server.ts",
+    "start": "tsx src/server.ts",
+    "bench": "tsx bench/run.ts",
+    "bench:grade": "tsx bench/grade.ts",
+    "bench:refresh": "tsx bench/refresh-answers.ts"
+  },
+  "author": "Jose Velazco",
+  "license": "GPL-3.0-or-later",
+  "type": "module",
+  "dependencies": {
+    "@ai-sdk/openai": "^4.0.73",
+    "ai": "^7.0.112",
+    "dotenv": "^18.0.3",
+    "pg": "^8.23.0",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.2",
+    "@types/pg": "^8.23.1",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/JoseVelazcoH/system-one-sql-agent.git"
+  },
+  "private": true
+}

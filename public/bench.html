@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Benchmark JEV</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap"
+    />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <div class="layout">
+      <nav class="nav"><a href="/">Comparar</a><a href="/bench" aria-current="page">Benchmark</a></nav>
+
+      <section class="console bench-controls" aria-label="Ejecutar benchmark">
+        <form class="console__form" id="start-form">
+          <label class="bench-controls__label" for="limit">Preguntas</label>
+          <select class="bench-controls__select" id="limit">
+            <option value="5">5 (prueba rápida)</option>
+            <option value="20">20</option>
+            <option value="100" selected>100 (completo)</option>
+          </select>
+          <span class="bench-controls__status" id="status">Sin corridas en curso</span>
+          <button class="bench-controls__button" type="submit">Ejecutar</button>
+        </form>
+      </section>
+
+      <section class="card bench-panel">
+        <header class="card__header">
+          <div>
+            <h2 class="card__title">Resultados</h2>
+            <p class="card__subtitle" id="run-meta">Selecciona una corrida</p>
+          </div>
+          <div class="bench-actions">
+            <select class="bench-controls__select" id="run-select" aria-label="Corrida"></select>
+            <button class="bench-controls__button bench-controls__button--secondary" id="export-pdf" type="button">
+              Exportar PDF
+            </button>
+          </div>
+        </header>
+        <div class="card__body">
+          <div class="bench-charts" id="charts"></div>
+          <span class="label">Resumen</span>
+          <div class="bench-table-wrap"><table class="bench-table" id="metrics"></table></div>
+          <span class="label">Por pregunta</span>
+          <div class="bench-table-wrap"><table class="bench-table" id="questions"></table></div>
+        </div>
+      </section>
+    </div>
+    <script type="module" src="/bench.js"></script>
+  </body>
+</html>

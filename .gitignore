@@ -1,0 +1,18 @@
+# Dependencies
+node_modules/
+
+# Secrets and local configuration
+.env
+
+# Generated from the local Postgres instance (npm run catalog)
+catalog.json
+
+# Benchmark outputs: raw runs contain model answers and provider error payloads
+bench/results/
+
+# npm lockfile: the project is managed with pnpm (pnpm-lock.yaml)
+package-lock.json
+
+# Local agent tooling
+.atl/
+.claude/

@@ -1,0 +1,1268 @@
+[
+  {
+    "id": 1,
+    "answerable": true,
+    "database": "censo_poblacion",
+    "goldSql": "SELECT sum(total) FROM view_inegi_2020 WHERE entidad='Jalisco' AND nivel='Municipal' AND municipio IS NOT NULL AND municipio<>''",
+    "expectedValues": [
+      8348151
+    ],
+    "expectedAnswer": "Jalisco has 8,348,151 inhabitants according to the 2020 Census.",
+    "acceptable": [],
+    "notes": "Convention: INEGI Census 2020 (most recent full census in the DB; there is also 2010 and 2015 intercensal)."
+  },
+  {
+    "id": 2,
+    "answerable": true,
+    "database": "censo_poblacion",
+    "goldSql": "SELECT total FROM view_inegi_2020 WHERE entidad='Jalisco' AND nivel='Municipal' AND municipio='Zapopan'",
+    "expectedValues": [
+      1476491
+    ],
+    "expectedAnswer": "Zapopan had 1,476,491 inhabitants in the 2020 Census.",
+    "notes": "2020 Census convention.",
+    "acceptable": []
+  },
+  {
+    "id": 3,
+    "answerable": true,
+    "database": "censo_poblacion",
+    "goldSql": "SELECT municipio, total FROM view_inegi_2020 WHERE entidad='Jalisco' AND nivel='Municipal' AND municipio IS NOT NULL AND municipio<>'' ORDER BY total DESC LIMIT 5",
+    "expectedValues": [
+      "Zapopan",
+      1476491,
+      "Guadalajara",
+      1385629,
+      "Tlajomulco de Zúñiga",
+      727750,
+      "San Pedro Tlaquepaque",
+      687127,
+      "Tonalá",
+      569913
+    ],
+    "expectedAnswer": "The 5 most populous municipalities are Zapopan (1,476,491), Guadalajara (1,385,629), Tlajomulco de Zúñiga (727,750), San Pedro Tlaquepaque (687,127) and Tonalá (569,913).",
+    "notes": "2020 Census convention.",
+    "acceptable": []
+  },
+  {
+    "id": 4,
+    "answerable": true,
+    "database": "censo_poblacion",
+    "goldSql": "SELECT (SELECT total FROM view_inegi_2020 WHERE entidad='Jalisco' AND nivel='Municipal' AND municipio='Tlajomulco de Zúñiga') - (SELECT total FROM view_inegi_2010 WHERE entidad='Jalisco' AND nivel='Municipal' AND municipio='Tlajomulco de Zúñiga')",
+    "expectedValues": [
+      311124
+    ],
+    "expectedAnswer": "Tlajomulco de Zúñiga grew by 311,124 inhabitants between 2010 (416,626) and 2020 (727,750), about 74.7% growth.",
+    "notes": "Uses view_inegi_2010 and view_inegi_2020.",
+    "acceptable": []
+  },
+  {
+    "id": 5,
+    "answerable": true,
+    "database": "censo_poblacion",
+    "goldSql": "SELECT municipio, total FROM view_inegi_2020 WHERE entidad='Jalisco' AND nivel='Municipal' AND municipio IS NOT NULL AND municipio<>'' ORDER BY total ASC LIMIT 1",
+    "expectedValues": [
+      "Santa María del Oro",
+      1815
+    ],
+    "expectedAnswer": "Santa María del Oro is the least populated municipality of Jalisco with 1,815 inhabitants (2020 Census).",
+    "notes": "2020 Census convention.",
+    "acceptable": []
+  },
+  {
+    "id": 6,
+    "answerable": true,
+    "database": "censo_poblacion",
+    "goldSql": "SELECT total_mujeres FROM view_inegi_2020 WHERE entidad='Jalisco' AND nivel='Municipal' AND municipio='Guadalajara'",
+    "expectedValues": [
+      718632
+    ],
+    "expectedAnswer": "718,632 women live in Guadalajara (2020 Census).",
+    "notes": "2020 Census convention.",
+    "acceptable": []
+  },
+  {
+    "id": 7,
+    "answerable": true,
+    "database": "censo_poblacion",
+    "goldSql": "SELECT round(100.0*(SELECT total FROM view_inegi_2020 WHERE entidad='Jalisco' AND nivel='Municipal' AND municipio='Guadalajara')/(SELECT sum(total) FROM view_inegi_2020 WHERE entidad='Jalisco' AND nivel='Municipal' AND municipio IS NOT NULL AND municipio<>''),2)",
+    "expectedValues": [
+      16.6
+    ],
+    "expectedAnswer": "About 16.6% of Jalisco's population lives in Guadalajara (1,385,629 of 8,348,151, 2020 Census).",
+    "notes": "2020 Census convention.",
+    "acceptable": []
+  },
+  {
+    "id": 8,
+    "answerable": true,
+    "database": "censo_poblacion",
+    "goldSql": "SELECT count(*) FROM view_inegi_2020 WHERE entidad='Jalisco' AND nivel='Localidad'",
+    "expectedValues": [
+      10348
+    ],
+    "expectedAnswer": "Jalisco has 10,348 localities according to the 2020 Census.",
+    "acceptable": [
+      "12,686 if counting the national 'localidades' catalog table instead of the 2020 census locality-level rows scoped to Jalisco"
+    ],
+    "notes": "Used view_inegi_2020 nivel='Localidad' scoped to Jalisco; the raw 'localidades' table is a national catalog not scoped by state."
+  },
+  {
+    "id": 9,
+    "answerable": true,
+    "database": "defunciones",
+    "goldSql": "SELECT count(*) FROM vw_defunciones WHERE anio_registro='2022'",
+    "expectedValues": [
+      56388
+    ],
+    "expectedAnswer": "56,388 deaths of Jalisco residents were registered in 2022.",
+    "acceptable": [
+      "56,330 when counting by year of occurrence (anio_ocurr) instead of year of registration"
+    ],
+    "notes": "Convention: registration year (anio_registro). Table already filtered to Jalisco residents."
+  },
+  {
+    "id": 10,
+    "answerable": true,
+    "database": "defunciones",
+    "goldSql": "SELECT anio_registro, count(*) FROM vw_defunciones WHERE anio_registro IN ('2021','2022') GROUP BY 1 ORDER BY 1",
+    "expectedValues": [
+      "2021",
+      74630,
+      "2022",
+      56388
+    ],
+    "expectedAnswer": "Deaths decreased sharply from 2021 (74,630) to 2022 (56,388), mostly because 2021 was a COVID-19 peak year.",
+    "notes": "Registration-year convention.",
+    "acceptable": []
+  },
+  {
+    "id": 11,
+    "answerable": true,
+    "database": "defunciones",
+    "goldSql": "SELECT causa_defuncion, count(*) c FROM vw_defunciones WHERE anio_registro='2022' GROUP BY 1 ORDER BY c DESC LIMIT 5",
+    "expectedValues": [
+      "Infarto agudo del miocardio, sin otra especificación",
+      6624,
+      "Covid-19, virus identificado",
+      2844,
+      "Neumonía, no especificada",
+      2410,
+      "Diabetes mellitus tipo 2, con otras complicaciones especificadas",
+      1852,
+      "Enfermedad pulmonar obstructiva crónica, no especificada",
+      1010
+    ],
+    "expectedAnswer": "The leading cause of death in Jalisco in 2022 was acute myocardial infarction (6,624 deaths), followed by Covid-19 (2,844) and unspecified pneumonia (2,410).",
+    "notes": "Uses detailed causa_defuncion (CIE code); grouping by broader chapter/lista_mex would show different aggregated top causes (e.g. heart disease overall).",
+    "acceptable": []
+  },
+  {
+    "id": 12,
+    "answerable": true,
+    "database": "defunciones",
+    "goldSql": "SELECT count(*) FROM vw_defunciones WHERE anio_registro='2023' AND lista_mex='Agresiones (homicidios)'",
+    "expectedValues": [
+      1675
+    ],
+    "expectedAnswer": "1,675 homicides were registered in Jalisco in 2023 (deaths coded as 'Agresiones (homicidios)').",
+    "acceptable": [
+      "1,564 when counting by year of occurrence (anio_ocurr) instead of year of registration"
+    ],
+    "notes": "Uses lista_mex classification for homicide/aggression deaths, registration-year convention. This is death-certificate based, may differ from Fiscalía's homicide count."
+  },
+  {
+    "id": 13,
+    "answerable": true,
+    "database": "defunciones",
+    "goldSql": "SELECT count(*) FROM vw_defunciones WHERE anio_registro='2022' AND municipio_resid='Guadalajara' AND causa_defuncion ILIKE 'Diabetes%'",
+    "expectedValues": [
+      1290
+    ],
+    "expectedAnswer": "1,290 people died of diabetes (any type/complication) in Guadalajara in 2022.",
+    "notes": "Municipality of residence, registration year, any causa_defuncion starting with 'Diabetes'.",
+    "acceptable": []
+  },
+  {
+    "id": 14,
+    "answerable": true,
+    "database": "defunciones",
+    "goldSql": "SELECT round(avg(CASE WHEN edad_id BETWEEN 4001 AND 4120 THEN edad_id-4000 WHEN edad_id<4001 THEN 0 END)::numeric,1) FROM stg_defunciones WHERE anio_registro_id=2022",
+    "expectedValues": [
+      65.7
+    ],
+    "expectedAnswer": "The average age at death in Jalisco in 2022 was about 65.7 years.",
+    "notes": "edad_id follows DGIS coding where 4000+n = n years old; ages under 1 year (hours/days/months codes <4000) counted as 0 years. 'Not specified' (4998) excluded via range filter.",
+    "acceptable": []
+  },
+  {
+    "id": 15,
+    "answerable": true,
+    "database": "defunciones",
+    "goldSql": "SELECT sexo, count(*) FROM vw_defunciones WHERE anio_registro='2022' GROUP BY 1",
+    "expectedValues": [
+      "Hombre",
+      32041,
+      "Mujer",
+      24323
+    ],
+    "expectedAnswer": "More men than women die in Jalisco: in 2022, 32,041 men vs 24,323 women (plus 24 unspecified).",
+    "notes": "Registration year 2022 used as representative sample; pattern (more male deaths) holds across years.",
+    "acceptable": []
+  },
+  {
+    "id": 16,
+    "answerable": true,
+    "database": "defunciones",
+    "goldSql": "SELECT count(*) FROM vw_defunciones WHERE anio_registro='2020' AND causa_defuncion ILIKE 'Covid%'",
+    "expectedValues": [
+      8853
+    ],
+    "expectedAnswer": "8,853 Covid-19 deaths were registered in Jalisco in 2020.",
+    "notes": "Registration-year convention; the real pandemic death toll by occurrence date may differ since some 2020 deaths were registered later.",
+    "acceptable": []
+  },
+  {
+    "id": 17,
+    "answerable": true,
+    "database": "defunciones",
+    "goldSql": "SELECT mes_registro, count(*) c FROM vw_defunciones WHERE anio_registro='2022' GROUP BY 1 ORDER BY c DESC LIMIT 1",
+    "expectedValues": [
+      "Enero",
+      6689
+    ],
+    "expectedAnswer": "January was the month with most deaths in Jalisco in 2022 (6,689), followed by February (6,518).",
+    "notes": "Registration-month convention.",
+    "acceptable": []
+  },
+  {
+    "id": 18,
+    "answerable": false,
+    "database": null,
+    "goldSql": null,
+    "expectedValues": [],
+    "expectedAnswer": "Not available: the nacimientos_dgis database's birth-certificate tables (stg/vw_nacimientos_certificados and related aggregates) are present in the schema but contain zero rows; no births data is actually loaded.",
+    "notes": "Verified: all tables in nacimientos_dgis (stg_nacimientos_certificados, vw_nacimientos_certificados, stg_nacimientos_edad_madre, stg_nacimientos_adolescentes, stg_tasa_fecundidad) return 0 rows.",
+    "acceptable": []
+  },
+  {
+    "id": 19,
+    "answerable": false,
+    "database": null,
+    "goldSql": null,
+    "expectedValues": [],
+    "expectedAnswer": "Not available: same reason as births questions, nacimientos_dgis tables are empty.",
+    "notes": "",
+    "acceptable": []
+  },
+  {
+    "id": 20,
+    "answerable": false,
+    "database": null,
+    "goldSql": null,
+    "expectedValues": [],
+    "expectedAnswer": "Not available: nacimientos_dgis tables are empty (no births/cesarean data loaded).",
+    "notes": "",
+    "acceptable": []
+  },
+  {
+    "id": 21,
+    "answerable": false,
+    "database": null,
+    "goldSql": null,
+    "expectedValues": [],
+    "expectedAnswer": "Not available: nacimientos_dgis tables are empty (no births-by-sex data loaded).",
+    "notes": "",
+    "acceptable": []
+  },
+  {
+    "id": 22,
+    "answerable": false,
+    "database": null,
+    "goldSql": null,
+    "expectedValues": [],
+    "expectedAnswer": "Not available: nacimientos_dgis tables are empty (no births/mother-age data loaded).",
+    "notes": "",
+    "acceptable": []
+  },
+  {
+    "id": 23,
+    "answerable": false,
+    "database": null,
+    "goldSql": null,
+    "expectedValues": [],
+    "expectedAnswer": "Not available: nacimientos_dgis tables are empty (no births-by-municipality data loaded).",
+    "notes": "",
+    "acceptable": []
+  },
+  {
+    "id": 24,
+    "answerable": true,
+    "database": "secretaria_educacion",
+    "goldSql": "SELECT count(*) FROM vw_directorio_centros_trabajo",
+    "expectedValues": [
+      15767
+    ],
+    "expectedAnswer": "There are 15,767 school work-centers (centros de trabajo) registered in Jalisco as of the latest cut (2025-09-30).",
+    "acceptable": [
+      "Different totals if scoping to only 'active' schools or a specific educational level; this counts the whole directory across all levels."
+    ],
+    "notes": "Single-snapshot directory table (fecha_corte=2025-09-30), covers basic through higher education, public and private."
+  },
+  {
+    "id": 25,
+    "answerable": true,
+    "database": "secretaria_educacion",
+    "goldSql": "SELECT count(*) FROM vw_directorio_centros_trabajo WHERE municipio ILIKE '%zapopan%' AND nivel ILIKE '%primaria%'",
+    "expectedValues": [
+      523
+    ],
+    "expectedAnswer": "Zapopan has 523 primary schools (centros de trabajo, nivel='Primaria').",
+    "notes": "",
+    "acceptable": []
+  },
+  {
+    "id": 26,
+    "answerable": true,
+    "database": "secretaria_educacion",
+    "goldSql": "SELECT count(*) FROM vw_directorio_centros_trabajo WHERE municipio ILIKE '%guadalajara%' AND nivel='Superior'",
+    "expectedValues": [
+      209
+    ],
+    "expectedAnswer": "Guadalajara has 209 higher-education work-centers (nivel='Superior' in the school directory, which mixes universities and other tertiary institutions).",
+    "acceptable": [],
+    "notes": "The directory's 'Superior' level includes universities and other higher-education institutions, not only 'universidades' strictly; there is no finer sub-type distinguishing universities specifically."
+  },
+  {
+    "id": 27,
+    "answerable": true,
+    "database": "secretaria_educacion",
+    "goldSql": "SELECT round(sum(total_matriculados)::numeric/sum(total_docentes_directivo),2) FROM vw_directorio_centros_trabajo WHERE nivel='Primaria'",
+    "expectedValues": [
+      24.95
+    ],
+    "expectedAnswer": "Jalisco primary schools have about 25 students per teacher (851,322 students / 34,122 staff).",
+    "notes": "total_docentes_directivo includes school directors along with teachers (no separate teacher-only count), so this is a students-per-staff approximation, slightly lower than a pure student-teacher ratio.",
+    "acceptable": []
+  },
+  {
+    "id": 28,
+    "answerable": true,
+    "database": "secretaria_educacion",
+    "goldSql": "SELECT sum(total_matriculados) FROM vw_directorio_centros_trabajo WHERE nivel='Secundaria'",
+    "expectedValues": [
+      421740
+    ],
+    "expectedAnswer": "421,740 students are enrolled in secondary school (secundaria) in Jalisco.",
+    "notes": "Snapshot as of fecha_corte 2025-09-30.",
+    "acceptable": []
+  },
+  {
+    "id": 29,
+    "answerable": true,
+    "database": "secretaria_educacion",
+    "goldSql": "SELECT sostenimiento, count(*) FROM vw_directorio_centros_trabajo GROUP BY 1 ORDER BY 2 DESC",
+    "expectedValues": [
+      "Federalizado",
+      6781,
+      "Particular",
+      2925,
+      "Estatal",
+      2855,
+      "Federal",
+      2824,
+      "Autónomo",
+      382
+    ],
+    "expectedAnswer": "There are more public schools than private ones in Jalisco: 12,842 public (Federalizado+Estatal+Federal+Autónomo) vs 2,925 private (Particular).",
+    "notes": "'Public' interpreted as all sostenimiento categories except 'Particular'.",
+    "acceptable": []
+  },
+  {
+    "id": 30,
+    "answerable": false,
+    "database": null,
+    "goldSql": null,
+    "expectedValues": [],
+    "expectedAnswer": "Not available: none of the databases has an average-years-of-schooling (grado promedio de escolaridad) indicator for Jalisco.",
+    "acceptable": [
+      "marginacion DB has related but different indicators: % population 15+ illiterate and % population 15+ without basic education, by municipality"
+    ],
+    "notes": "Checked conapo (has median age, not schooling) and marginacion (has illiteracy % and no-basic-education %, not average grade level)."
+  },
+  {
+    "id": 31,
+    "answerable": true,
+    "database": "establecimientos_de_salud",
+    "goldSql": "SELECT count(DISTINCT clues) FROM v_establecimientos_jalisco WHERE estatus_establecimiento='En operación' AND tipo_establecimiento='De hospitalización'",
+    "expectedValues": [
+      317
+    ],
+    "expectedAnswer": "There are 317 operating hospital-type health facilities (tipo_establecimiento='De hospitalización') in Jalisco.",
+    "acceptable": [],
+    "notes": "Counts distinct CLUES with status 'En operación' and type 'De hospitalización'; broader definitions of 'hospital' could differ slightly."
+  },
+  {
+    "id": 32,
+    "answerable": true,
+    "database": "establecimientos_de_salud",
+    "goldSql": "SELECT count(DISTINCT clues) FROM v_establecimientos_jalisco WHERE municipio ILIKE '%tlaquepaque%' AND estatus_establecimiento='En operación' AND tipologia ILIKE '%núcleos básicos%'",
+    "expectedValues": [
+      15
+    ],
+    "expectedAnswer": "Tlaquepaque has 15 operating 'centro de salud' type facilities (tipologia 'Urbano de N núcleos básicos', the standard Secretaría de Salud clinic type).",
+    "acceptable": [
+      "A broader count including 'Unidad de medicina familiar' (IMSS) and other clinic types would be higher; this uses the narrower 'centro de salud' typology."
+    ],
+    "notes": "tipologia has many categories (Hospital especializado, Clinica, Unidad de medicina familiar, Urbano de N núcleos básicos, etc.); 'centro de salud' interpreted as the 'núcleos básicos' family which is the standard SSJ health-center type."
+  },
+  {
+    "id": 33,
+    "answerable": true,
+    "database": "establecimientos_de_salud",
+    "goldSql": "SELECT institucion, count(DISTINCT clues) c FROM v_establecimientos_jalisco WHERE estatus_establecimiento='En operación' AND institucion IN ('Secretaria de salud','Instituto mexicano del seguro social','Instituto de seguridad y servicios sociales de los trabajadores del estado','Instituto de seguridad y servicios sociales para los trabajadores del estado') GROUP BY 1 ORDER BY c DESC",
+    "expectedValues": [
+      "Secretaria de salud",
+      897
+    ],
+    "expectedAnswer": "Secretaría de Salud has by far the most clinics/facilities in Jalisco (897), compared to IMSS (136) and ISSSTE (175 combined across two duplicate spellings in the catalog).",
+    "notes": "The institucion catalog has two near-duplicate ISSSTE labels ('de los' vs 'para los trabajadores del estado'); combined for the comparison.",
+    "acceptable": [
+      "Also lists IMSS (136) and ISSSTE (175 combined, or 88 and 87 under its two catalog spellings)"
+    ]
+  },
+  {
+    "id": 34,
+    "answerable": false,
+    "database": null,
+    "goldSql": null,
+    "expectedValues": [],
+    "expectedAnswer": "Not available: establecimientos_de_salud has no hospital-bed-count column, only facility records without capacity/bed data.",
+    "notes": "Checked all columns of v_establecimientos_jalisco; no 'camas' field exists.",
+    "acceptable": []
+  },
+  {
+    "id": 35,
+    "answerable": true,
+    "database": "pobreza_multidimensional",
+    "goldSql": "SELECT round(100.0*sum(car_salud_personas)/sum(poblacion),1) FROM vw_pobreza_multidimencional WHERE nombre_entidad='Jalisco' AND anio=2020",
+    "expectedValues": [
+      32.1
+    ],
+    "expectedAnswer": "About 32.1% of Jalisco's population lacked access to health services in 2020 (CONEVAL carencia por acceso a servicios de salud), aggregated from municipal data.",
+    "notes": "No state-level row exists in the table; computed as population-weighted aggregate of the 125 municipal rows for 2020 (latest year available: 2010/2015/2020).",
+    "acceptable": []
+  },
+  {
+    "id": 36,
+    "answerable": true,
+    "database": "censos_economicos",
+    "goldSql": "SELECT unidades_economicas FROM vw_economico_estatal_2023 WHERE cve_ent=14 AND sector IS NULL AND estrato='Suma de estratos'",
+    "expectedValues": [
+      365421
+    ],
+    "expectedAnswer": "Jalisco had 365,421 economic units (establishments) registered in the 2023 Economic Census (published 2024).",
+    "acceptable": [],
+    "notes": "'Empresas' interpreted as 'unidades económicas' from the 2023 Economic Census, the closest and most complete business-count dataset (DENUE, the establishment directory, has no data loaded)."
+  },
+  {
+    "id": 37,
+    "answerable": false,
+    "database": null,
+    "goldSql": null,
+    "expectedValues": [],
+    "expectedAnswer": "Not available: the DENUE establishment directory database (which would list individual restaurants by municipality) is empty (0 rows in all its tables).",
+    "notes": "Verified stg_est_jal, stg_est_ent, v_establecimientos, v_establecimientos_jalisco all return 0 rows.",
+    "acceptable": []
+  },
+  {
+    "id": 38,
+    "answerable": true,
+    "database": "censos_economicos",
+    "goldSql": "SELECT sector, actividad, unidades_economicas FROM vw_economico_estatal_2023 WHERE cve_ent=14 AND estrato='Suma de estratos' AND sector IS NOT NULL AND subsector IS NULL ORDER BY unidades_economicas DESC LIMIT 1",
+    "expectedValues": [
+      "46",
+      "Comercio al por menor",
+      161311
+    ],
+    "expectedAnswer": "Retail trade (Comercio al por menor) is the economic sector with the most business units in Jalisco: 161,311 units in the 2023 Economic Census.",
+    "notes": "Uses SCIAN sector-level aggregation (subsector IS NULL) from the 2023 Economic Census.",
+    "acceptable": []
+  },
+  {
+    "id": 39,
+    "answerable": false,
+    "database": null,
+    "goldSql": null,
+    "expectedValues": [],
+    "expectedAnswer": "Not available: DENUE (establishment directory, which would allow counting 'tiendas de abarrotes' specifically in Guadalajara) is empty; the Economic Census only has state/municipal aggregates by SCIAN category, not usable for this precise store-type + city combination reliably at that granularity in a single query without ambiguity.",
+    "acceptable": [
+      "70,064 units statewide (not Guadalajara-specific) classified under 'Comercio al por menor de abarrotes, alimentos, bebidas, hielo y tabaco' (SCIAN 461, includes more than just tiendas de abarrotes) from censos_economicos vw_economico_estatal_2023, if a state-level abarrotes-related answer is acceptable"
+    ],
+    "notes": "DENUE (municipality + establishment-level) is empty; censos_economicos has municipal breakdowns but the closest SCIAN category (461) bundles abarrotes with other small grocery retail types, not a clean 'abarrotes' figure."
+  },
+  {
+    "id": 40,
+    "answerable": true,
+    "database": "censos_economicos",
+    "goldSql": "SELECT unidades_economicas FROM vw_economico_estatal_2023 WHERE cve_ent=14 AND sector IS NULL AND estrato_codigo='4'",
+    "expectedValues": [
+      740
+    ],
+    "expectedAnswer": "Jalisco has 740 large economic units with more than 250 employees (estrato '251 y más'), per the 2023 Economic Census.",
+    "notes": "",
+    "acceptable": []
+  },
+  {
+    "id": 41,
+    "answerable": false,
+    "database": null,
+    "goldSql": null,
+    "expectedValues": [],
+    "expectedAnswer": "Not available: no dataset tracks business openings/closures or new-business registrations over time; the Economic Census only gives point-in-time totals (2018 and 2023 editions), and DENUE (which has an 'alta' date field) has no data loaded.",
+    "notes": "",
+    "acceptable": []
+  },
+  {
+    "id": 42,
+    "answerable": true,
+    "database": "emim",
+    "goldSql": "SELECT per_ocu_tot FROM vw_emim_jalisco WHERE codigo_actividad='31-33' ORDER BY fecha DESC LIMIT 1",
+    "expectedValues": [
+      273077
+    ],
+    "expectedAnswer": "About 273,077 people worked in manufacturing in Jalisco per the latest EMIM survey month (May 2026).",
+    "acceptable": [
+      "Any recent month's per_ocu_tot value is acceptable since this is a monthly time series (e.g. ~272,000-273,000 range through 2025-2026)"
+    ],
+    "notes": "EMIM (Encuesta Mensual de la Industria Manufacturera) surveys a sample of larger manufacturing establishments, not a full census count; codigo_actividad='31-33' is the aggregate manufacturing total."
+  },
+  {
+    "id": 43,
+    "answerable": true,
+    "database": "emim",
+    "goldSql": "SELECT round((remuneraciones*1000.0/per_ocu_tot)::numeric,0) FROM vw_emim_jalisco WHERE codigo_actividad='31-33' ORDER BY fecha DESC LIMIT 1",
+    "expectedValues": [
+      41241
+    ],
+    "expectedAnswer": "Average monthly remuneration in Jalisco's manufacturing industry is about $41,241 MXN per worker (EMIM, May 2026; remuneraciones figures are in thousands of pesos, includes wages plus benefits, not only base salary).",
+    "acceptable": [
+      "Any nearby month's value in the same ~$27,000-41,000 MXN range (this figure is volatile month to month, includes bonus/aguinaldo months)"
+    ],
+    "notes": "'Industria' interpreted as manufacturing (EMIM); remuneraciones column is total monthly remuneration in thousand pesos, divided by per_ocu_tot to get a per-worker average; includes all compensation types, not just base salary."
+  },
+  {
+    "id": 44,
+    "answerable": true,
+    "database": "emim",
+    "goldSql": "SELECT (SELECT per_ocu_tot FROM vw_emim_jalisco WHERE codigo_actividad='31-33' ORDER BY fecha DESC LIMIT 1) - (SELECT per_ocu_tot FROM vw_emim_jalisco WHERE codigo_actividad='31-33' AND fecha = (SELECT max(fecha) - interval '1 year' FROM vw_emim_jalisco))",
+    "expectedValues": [
+      342
+    ],
+    "expectedAnswer": "Manufacturing employment in Jalisco barely changed in the last year: 273,077 (May 2026) vs 272,735 (May 2025), a gain of about 342 workers (+0.1%).",
+    "notes": "Compares the same calendar month one year apart in the EMIM series.",
+    "acceptable": []
+  },
+  {
+    "id": 45,
+    "answerable": true,
+    "database": "censos_economicos",
+    "goldSql": "SELECT unidades_economicas FROM vw_economico_estatal_2023 WHERE cve_ent=14 AND sector IS NULL AND estrato='Suma de estratos'",
+    "expectedValues": [
+      365421
+    ],
+    "expectedAnswer": "The most recent Economic Census (2023 data, published 2024) registered 365,421 economic units in Jalisco.",
+    "notes": "Same figure as Q36 (economic units = 'empresas' interpretation).",
+    "acceptable": []
+  },
+  {
+    "id": 46,
+    "answerable": true,
+    "database": "censos_economicos",
+    "goldSql": "SELECT municipio, prod_bruta_tot_mdp FROM vw_economico_municipal_2023 WHERE cve_ent=14 AND estrato='Suma de estratos' AND sector IS NULL ORDER BY prod_bruta_tot_mdp DESC LIMIT 1",
+    "expectedValues": [
+      "Guadalajara",
+      499827.56
+    ],
+    "expectedAnswer": "Guadalajara generates the most gross production value among Jalisco municipalities, about $499,828 million pesos (2023 Economic Census), followed by Zapopan ($448,872 million).",
+    "notes": "",
+    "acceptable": []
+  },
+  {
+    "id": 47,
+    "answerable": true,
+    "database": "censos_economicos",
+    "goldSql": "SELECT valor_agregado_censal_bruto_mdp FROM vw_economico_estatal_2023 WHERE cve_ent=14 AND sector IS NULL AND estrato='Suma de estratos'",
+    "expectedValues": [
+      939969.53
+    ],
+    "expectedAnswer": "Jalisco's gross census value added (Valor Agregado Censal Bruto) was about $939,970 million pesos in the 2023 Economic Census.",
+    "notes": "",
+    "acceptable": []
+  },
+  {
+    "id": 48,
+    "answerable": true,
+    "database": "agropecuario_siap",
+    "goldSql": "SELECT c.cultivo, sum(s.valor_produccion) v FROM stg_agricola s JOIN cat_cultivos c ON c.id=s.cultivo_id WHERE s.anio=2022 AND s.entidad_id=14 GROUP BY 1 ORDER BY v DESC LIMIT 1",
+    "expectedValues": [
+      "Maíz Grano",
+      27837273898.85
+    ],
+    "expectedAnswer": "Maíz grano (grain corn) is Jalisco's main crop, worth about $27.8 billion pesos in production value in 2022, ahead of Agave ($22.4 billion) and Aguacate ($9.7 billion).",
+    "acceptable": [
+      "Agave, if 'principal' is measured by production volume or economic importance of the tequila industry rather than raw production value"
+    ],
+    "notes": "'Principal' interpreted by production value (valor_produccion) for the 2022 cycle; entidad_id=14 verified as Jalisco via cross-check with population figures."
+  },
+  {
+    "id": 49,
+    "answerable": true,
+    "database": "agropecuario_siap",
+    "goldSql": "SELECT sum(s.volumen_produccion) FROM stg_agricola s JOIN cat_cultivos c ON c.id=s.cultivo_id WHERE s.anio=2022 AND s.entidad_id=14 AND c.cultivo='Maíz Grano'",
+    "expectedValues": [
+      3984289.04
+    ],
+    "expectedAnswer": "Jalisco produced about 3,984,289 tonnes of grain corn (maíz grano) in 2022.",
+    "notes": "Unit verified as 'Tonelada' via cat_unidades_medida.",
+    "acceptable": []
+  },
+  {
+    "id": 50,
+    "answerable": true,
+    "database": "agropecuario_siap",
+    "goldSql": "SELECT sum(s.sup_sembrada) FROM stg_agricola s JOIN cat_cultivos c ON c.id=s.cultivo_id WHERE s.entidad_id=14 AND c.cultivo='Agave' AND s.anio=2024",
+    "expectedValues": [
+      136836.45
+    ],
+    "expectedAnswer": "About 136,836 hectares of agave were planted in Jalisco in 2024, the latest year available (up from 73,585 ha in 2022, reflecting the tequila boom).",
+    "acceptable": [
+      "73,585.22 ha if using 2022 instead of the latest available year (2024)"
+    ],
+    "notes": "Used most recent year (2024) since the question does not specify a year; sup_sembrada = hectares sown."
+  },
+  {
+    "id": 51,
+    "answerable": true,
+    "database": "agropecuario_siap",
+    "goldSql": "SELECT s.municipio_id, sum(s.volumen_produccion) v FROM stg_agricola s JOIN cat_cultivos c ON c.id=s.cultivo_id WHERE s.entidad_id=14 AND c.cultivo='Aguacate' AND s.anio=2022 GROUP BY 1 ORDER BY v DESC LIMIT 1",
+    "expectedValues": [
+      23,
+      69736.19
+    ],
+    "expectedAnswer": "Zapotlán el Grande is Jalisco's top avocado-producing municipality, with about 69,736 tonnes in 2022.",
+    "notes": "municipio_id cross-referenced against cvegeo_municipalities.cve_mun: id 23 = Zapotlán el Grande. goldSql returns the raw municipio_id since SIAP's own name-resolving view is broken (cross-database FDW to host 'postgres' fails); a full agent answer should resolve 23 -> Zapotlán el Grande.",
+    "acceptable": []
+  },
+  {
+    "id": 52,
+    "answerable": true,
+    "database": "agropecuario_siap",
+    "goldSql": "SELECT sum(valor_produccion) FROM stg_agricola WHERE anio=2022 AND entidad_id=14",
+    "expectedValues": [
+      106107320426.79
+    ],
+    "expectedAnswer": "The value of Jalisco's agricultural production was about $106.1 billion pesos in 2022.",
+    "acceptable": [
+      "Different totals for other years since SIAP data spans 2019-2024"
+    ],
+    "notes": "Sum of valor_produccion across all crops and cycles for 2022."
+  },
+  {
+    "id": 53,
+    "answerable": true,
+    "database": "produccion_ganadera",
+    "goldSql": "SELECT sum(s.volumen_produccion) FROM stg_ganadera s JOIN cat_productos p ON p.id=s.producto_id WHERE s.entidad_id=14 AND p.producto='Leche' AND s.anio=2024",
+    "expectedValues": [
+      2855404.23
+    ],
+    "expectedAnswer": "Jalisco produces about 2,855,404 (thousand liters, i.e. ~2.86 billion liters) of milk per year, per 2024 SIAP data.",
+    "acceptable": [
+      "2,809,205.99 for 2023 or 2,762,970.25 for 2022 if a different year is preferred"
+    ],
+    "notes": "Unit not fully confirmed from a units catalog table in this DB (no cat_unidades_medida found), but consistent with SIAP's usual 'miles de litros' convention for milk."
+  },
+  {
+    "id": 54,
+    "answerable": true,
+    "database": "produccion_ganadera",
+    "goldSql": "SELECT e.especie, sum(s.volumen_produccion) v FROM stg_ganadera s JOIN cat_especies e ON e.id=s.especie_id WHERE s.entidad_id=14 AND s.anio=2022 GROUP BY 1 ORDER BY v DESC LIMIT 1",
+    "expectedValues": [
+      "Bovino",
+      3472939.24
+    ],
+    "expectedAnswer": "Cattle (Bovino) is Jalisco's main livestock species by production volume (2022), ahead of poultry (Ave) and swine (Porcino).",
+    "notes": "Volume here mixes meat and other livestock products across species; interpreted as overall production volume per species for 2022.",
+    "acceptable": []
+  },
+  {
+    "id": 55,
+    "answerable": true,
+    "database": "rastros",
+    "goldSql": "SELECT sum(numero_cabezas) FROM vw_rastros_jalisco WHERE especie_ganadera='Ganado bovino' AND extract(year from fecha)=2023",
+    "expectedValues": [
+      319980
+    ],
+    "expectedAnswer": "About 319,980 cattle (bovino) were slaughtered in municipal slaughterhouses in Jalisco in 2023, per INEGI's ESGRM survey.",
+    "notes": "",
+    "acceptable": []
+  },
+  {
+    "id": 56,
+    "answerable": false,
+    "database": null,
+    "goldSql": null,
+    "expectedValues": [],
+    "expectedAnswer": "Not available: the rastros database only has aggregated monthly slaughter statistics (ESGRM survey) by state, not a facility-level list/count of individual slaughterhouses.",
+    "notes": "",
+    "acceptable": []
+  },
+  {
+    "id": 57,
+    "answerable": true,
+    "database": "pobreza_multidimensional",
+    "goldSql": "SELECT sum(pobreza_personas) FROM vw_pobreza_multidimencional WHERE nombre_entidad='Jalisco' AND anio=2020",
+    "expectedValues": [
+      2733157
+    ],
+    "expectedAnswer": "About 2,733,157 people lived in poverty in Jalisco in 2020 (CONEVAL multidimensional poverty), roughly 32.6% of the population.",
+    "notes": "No state-level row; aggregated from the 125 municipal rows for 2020, the latest year available.",
+    "acceptable": []
+  },
+  {
+    "id": 58,
+    "answerable": true,
+    "database": "pobreza_multidimensional",
+    "goldSql": "SELECT round(100.0*sum(pobreza_ext_personas)/sum(poblacion),2) FROM vw_pobreza_multidimencional WHERE nombre_entidad='Jalisco' AND anio=2020",
+    "expectedValues": [
+      3.48
+    ],
+    "expectedAnswer": "About 3.48% of Jalisco's population was in extreme poverty in 2020.",
+    "notes": "Population-weighted aggregate of municipal rows for 2020.",
+    "acceptable": []
+  },
+  {
+    "id": 59,
+    "answerable": true,
+    "database": "pobreza_multidimensional",
+    "goldSql": "SELECT anio, round(100.0*sum(pobreza_personas)/sum(poblacion),1) FROM vw_pobreza_multidimencional WHERE nombre_entidad='Jalisco' AND anio IN (2015,2020) GROUP BY 1 ORDER BY 1",
+    "expectedValues": [
+      2015,
+      34.8,
+      2020,
+      32.6
+    ],
+    "expectedAnswer": "Poverty in Jalisco decreased: 34.8% of the population in 2015 vs 32.6% in 2020 (2018 data is not available in this database, which only has 2010/2015/2020).",
+    "acceptable": [
+      "States that 2018 specifically is not available and offers the 2015-to-2020 trend as the closest comparison"
+    ],
+    "notes": "Database only has CONEVAL poverty editions for 2010, 2015 and 2020, not 2018; used 2015 vs 2020 as the closest available comparison to answer the intent of the question."
+  },
+  {
+    "id": 60,
+    "answerable": true,
+    "database": "marginacion",
+    "goldSql": "SELECT municipio, grado_marginacion, indice_marginacion FROM view_marginacion_municipal WHERE fecha_actualizacion='2020-01-01' ORDER BY indice_marginacion ASC LIMIT 1",
+    "expectedValues": [
+      "Mezquitic",
+      "Muy alto",
+      31.31
+    ],
+    "expectedAnswer": "Mezquitic is Jalisco's most marginalized municipality (grado 'Muy alto', lowest indice_marginacion), per 2020 CONAPO data.",
+    "notes": "Lower indice_marginacion means higher marginalization (verified against grado_marginacion labels); used latest year (2020) among the three available (2010/2015/2020).",
+    "acceptable": []
+  },
+  {
+    "id": 61,
+    "answerable": true,
+    "database": "marginacion",
+    "goldSql": "SELECT grado_marginacion FROM view_marginacion_municipal WHERE municipio='Mezquitic' AND fecha_actualizacion='2020-01-01'",
+    "expectedValues": [
+      "Muy alto"
+    ],
+    "expectedAnswer": "Mezquitic has a 'Muy alto' (very high) degree of marginalization (2020 CONAPO data).",
+    "notes": "",
+    "acceptable": []
+  },
+  {
+    "id": 62,
+    "answerable": true,
+    "database": "marginacion",
+    "goldSql": "SELECT count(*) FROM view_marginacion_municipal WHERE grado_marginacion='Muy alto' AND fecha_actualizacion='2020-01-01'",
+    "expectedValues": [
+      2
+    ],
+    "expectedAnswer": "2 Jalisco municipalities have 'Muy alto' (very high) marginalization degree in 2020: Mezquitic and Bolaños.",
+    "notes": "Latest year (2020) among the three available.",
+    "acceptable": []
+  },
+  {
+    "id": 63,
+    "answerable": true,
+    "database": "marginacion",
+    "goldSql": "SELECT indice_marginacion FROM view_marginacion_municipal WHERE municipio='Guadalajara' AND fecha_actualizacion='2020-01-01'",
+    "expectedValues": [
+      60.76
+    ],
+    "expectedAnswer": "Guadalajara's marginalization index (indice_marginacion, CONAPO 2020) is about 60.76, the highest (least marginalized) among Jalisco municipalities, with grado 'Muy bajo'.",
+    "notes": "",
+    "acceptable": []
+  },
+  {
+    "id": 64,
+    "answerable": true,
+    "database": "intensidad_migratoria",
+    "goldSql": "SELECT municipio, iim_dp2, gim_dp2 FROM view_iim_municipios_jalisco_2020 ORDER BY iim_dp2 ASC LIMIT 1",
+    "expectedValues": [
+      "Cuautla",
+      56.7,
+      "Muy alto"
+    ],
+    "expectedAnswer": "Cuautla has the highest migratory intensity toward the United States among Jalisco municipalities (grado 'Muy alto', 2020 CONAPO data).",
+    "notes": "Lower iim_dp2 score corresponds to 'Muy alto' grade (verified against gim_dp2 labels), i.e. the index is inverted relative to intuition.",
+    "acceptable": []
+  },
+  {
+    "id": 65,
+    "answerable": true,
+    "database": "intensidad_migratoria",
+    "goldSql": "SELECT por_viv_remesas FROM view_iim_entidades WHERE entidad='Jalisco' AND fecha=2020",
+    "expectedValues": [
+      6.76
+    ],
+    "expectedAnswer": "About 6.76% of Jalisco households receive remittances (CONAPO 2020 migratory intensity index).",
+    "notes": "",
+    "acceptable": []
+  },
+  {
+    "id": 66,
+    "answerable": true,
+    "database": "intensidad_migratoria",
+    "goldSql": "SELECT gim_dp2 FROM view_iim_entidades WHERE entidad='Jalisco' AND fecha=2020",
+    "expectedValues": [
+      "Medio"
+    ],
+    "expectedAnswer": "Jalisco has a 'Medio' (medium) degree of migratory intensity toward the US, per CONAPO 2020 data.",
+    "notes": "",
+    "acceptable": []
+  },
+  {
+    "id": 67,
+    "answerable": true,
+    "database": "fosas_clandestinas",
+    "goldSql": "SELECT count(*) FROM vw_fosas_clandestinas",
+    "expectedValues": [
+      263
+    ],
+    "expectedAnswer": "263 clandestine grave sites have been found in Jalisco, per the latest published cut of the state registry (2026-08-01).",
+    "acceptable": [],
+    "notes": "vw_fosas_clandestinas already reflects the latest cat_publicaciones cut; figures described by the source as preliminary and subject to revision."
+  },
+  {
+    "id": 68,
+    "answerable": true,
+    "database": "fosas_clandestinas",
+    "goldSql": "SELECT sum(pre_victimas_loc) FROM vw_fosas_clandestinas",
+    "expectedValues": [
+      2218
+    ],
+    "expectedAnswer": "About 2,218 bodies/victims have been recovered from clandestine grave sites in Jalisco (preliminary figures, latest cut).",
+    "notes": "pre_victimas_loc = preliminary victims located; sums exclude rows without a numeric figure per the table's own documentation.",
+    "acceptable": []
+  },
+  {
+    "id": 69,
+    "answerable": true,
+    "database": "fosas_clandestinas",
+    "goldSql": "SELECT municipio, count(*) c FROM vw_fosas_clandestinas GROUP BY 1 ORDER BY c DESC LIMIT 1",
+    "expectedValues": [
+      "Tlajomulco de Zúñiga",
+      99
+    ],
+    "expectedAnswer": "Tlajomulco de Zúñiga has the most clandestine grave sites found in Jalisco (99), far ahead of Zapopan (46).",
+    "notes": "",
+    "acceptable": []
+  },
+  {
+    "id": 70,
+    "answerable": true,
+    "database": "fiscalia",
+    "goldSql": "SELECT count(*) FROM casos WHERE fecha_denuncia >= '2023-01-01' AND fecha_denuncia <= '2023-12-31'",
+    "expectedValues": [
+      63515
+    ],
+    "expectedAnswer": "The Fiscalía de Jalisco opened 63,515 investigation folders (carpetas de investigación) in 2023.",
+    "notes": "Counts rows in 'casos' (one row per case) with fecha_denuncia in 2023.",
+    "acceptable": []
+  },
+  {
+    "id": 71,
+    "answerable": true,
+    "database": "fiscalia",
+    "goldSql": "SELECT d.delito, count(*) c FROM casos c2 JOIN delitos d ON d.id=c2.delitos_id GROUP BY 1 ORDER BY c DESC LIMIT 1",
+    "expectedValues": [
+      "Robo a vehículos particulares",
+      111792
+    ],
+    "expectedAnswer": "The most commonly reported crime in Jalisco is theft of private vehicles (Robo a vehículos particulares), with 111,792 cases across all years on record (2017-2026), closely followed by domestic violence (111,491) and robbery of persons (97,707).",
+    "acceptable": [
+      "Violencia familiar (111,491), which is nearly tied and could lead depending on the exact year range considered"
+    ],
+    "notes": "Uses the full historical range in the 'casos' table (2017-2026) since the question doesn't specify a year."
+  },
+  {
+    "id": 72,
+    "answerable": true,
+    "database": "fiscalia",
+    "goldSql": "SELECT count(*) FROM delitos_fiscalia_robo_casa_habitacion WHERE municipio ILIKE '%guadalajara%'",
+    "expectedValues": [
+      9115
+    ],
+    "expectedAnswer": "9,115 home burglaries (robo a casa habitación) were reported in Guadalajara, across the full historical range in this table (2017-2026).",
+    "acceptable": [],
+    "notes": "This crime-specific table only includes cases with valid geographic coordinates ('consumida en vivo por mapalab' per its comment), so the true total could be marginally higher."
+  },
+  {
+    "id": 73,
+    "answerable": false,
+    "database": null,
+    "goldSql": null,
+    "expectedValues": [],
+    "expectedAnswer": "Not available: there is no missing-persons (personas desaparecidas) registry in these databases. fosas_clandestinas tracks clandestine grave sites and recovered bodies, which is a related but different concept.",
+    "notes": "",
+    "acceptable": []
+  },
+  {
+    "id": 74,
+    "answerable": true,
+    "database": "datamexico",
+    "goldSql": "SELECT sum(valor_comercio) FROM v_flujo_comercio WHERE entidad='Jalisco' AND flujo='Exportaciones' AND (anio,trimestre) IN ((2024,4),(2025,1),(2025,2),(2025,3))",
+    "expectedValues": [
+      38684588031
+    ],
+    "expectedAnswer": "Jalisco exported about $38.68 billion USD in the most recent 4 consecutive quarters available (Q4 2024 - Q3 2025).",
+    "acceptable": [
+      "$14.49 billion for partial 2024 (Q3-Q4 only) or $43.36 billion for partial 2025 (Q1-Q4, only if all 4 quarters counted) depending on how the rolling window is sliced"
+    ],
+    "notes": "The datamexico DB only has a rolling window of quarters (2024-Q3 through 2025-Q4), not clean calendar years; used the latest 4 consecutive quarters as a 'per year' proxy."
+  },
+  {
+    "id": 75,
+    "answerable": true,
+    "database": "datamexico",
+    "goldSql": "SELECT nombre_pais, sum(valor_comercio) s FROM v_flujo_comercio WHERE flujo='Exportaciones' AND anio=2024 GROUP BY 1 ORDER BY s DESC LIMIT 1",
+    "expectedValues": [
+      "Estados Unidos",
+      122282853120
+    ],
+    "expectedAnswer": "The United States is by far Mexico's main export destination (about $122.3 billion USD in the available 2024 quarters, Q3-Q4).",
+    "notes": "Only Q3-Q4 2024 data available for that year; the dominance of the US is a stable pattern regardless.",
+    "acceptable": []
+  },
+  {
+    "id": 76,
+    "answerable": true,
+    "database": "datamexico",
+    "goldSql": "SELECT producto, sum(valor_comercio) s FROM v_flujo_comercio WHERE entidad='Jalisco' AND flujo='Exportaciones' AND anio=2024 GROUP BY 1 ORDER BY s DESC LIMIT 1",
+    "expectedValues": [
+      "Máquinas para la recepción, conversión y transmisión o regeneración de voz, imágenes u otros datos",
+      2415920893
+    ],
+    "expectedAnswer": "Jalisco's top export product is communication/data equipment (machines for reception, conversion and transmission of voice, images or other data), about $2.4 billion USD in the available 2024 quarters, reflecting the state's electronics manufacturing industry.",
+    "acceptable": [
+      "Any of the closely related top electronics products (data-processing machines, parts for data-processing machines) depending on the exact classification level used"
+    ],
+    "notes": "Uses available 2024 quarters (Q3-Q4); electronics/computer-related products dominate consistently given Jalisco's tech manufacturing cluster."
+  },
+  {
+    "id": 77,
+    "answerable": true,
+    "database": "datamexico",
+    "goldSql": "SELECT flujo, sum(valor_comercio) FROM v_flujo_comercio WHERE (anio,trimestre) IN ((2024,4),(2025,1),(2025,2),(2025,3)) GROUP BY 1",
+    "expectedValues": [
+      "Importaciones",
+      412583897828,
+      "Exportaciones",
+      295836612635
+    ],
+    "expectedAnswer": "No, Mexico imports more than it exports: about $412.6 billion USD in imports vs $295.8 billion in exports over the latest 4 available quarters, a trade deficit.",
+    "notes": "Based on the rolling-quarter window in datamexico (Q4 2024 - Q3 2025), summed across all states recorded in the table.",
+    "acceptable": []
+  },
+  {
+    "id": 78,
+    "answerable": true,
+    "database": "efipem",
+    "goldSql": "SELECT valor FROM vw_efipem WHERE tema='Egresos' AND clasificador='Tema' AND cve_ent=14 AND cve_mun=120 AND anio=2022",
+    "expectedValues": [
+      9964078756
+    ],
+    "expectedAnswer": "Zapopan's municipal government spent about $9,964,078,756 MXN (total egresos) in 2022.",
+    "notes": "cve_mun=120 confirmed as Zapopan via cvegeo_municipalities.",
+    "acceptable": []
+  },
+  {
+    "id": 79,
+    "answerable": true,
+    "database": "efipem",
+    "goldSql": "SELECT sum(valor) FROM vw_efipem WHERE tema='Ingresos' AND clasificador='Tema' AND cve_ent=14 AND anio=2022 AND cve_mun<>0",
+    "expectedValues": [
+      47562151759
+    ],
+    "expectedAnswer": "Jalisco's 125 municipalities had total income of about $47,562,151,759 MXN in 2022.",
+    "notes": "Sum of the 'Total de ingresos' figure across all municipalities (cve_mun<>0 to exclude any state-level aggregate rows).",
+    "acceptable": []
+  },
+  {
+    "id": 80,
+    "answerable": false,
+    "database": null,
+    "goldSql": null,
+    "expectedValues": [],
+    "expectedAnswer": "Not available: efipem only has annual income/expenditure flow data, including debt-service payments (interest, amortization), but no outstanding public debt balance/stock by municipality.",
+    "notes": "Checked available 'concepto' values under Egresos containing 'deuda'; all are annual debt-service expenditures, not a debt balance sheet figure.",
+    "acceptable": []
+  },
+  {
+    "id": 81,
+    "answerable": false,
+    "database": null,
+    "goldSql": null,
+    "expectedValues": [],
+    "expectedAnswer": "Not available: participacion_ciudadana only stores a participation percentage (porc_participacion) by municipality and year, not an absolute headcount of participants or the base population/electorate needed to compute one.",
+    "notes": "",
+    "acceptable": []
+  },
+  {
+    "id": 82,
+    "answerable": true,
+    "database": "edafologia",
+    "goldSql": "SELECT g.descripcion, sum(v.superficie_ha) s FROM vw_edafologia_resumenes_municipales v JOIN grupos_edafologicos g ON g.id=v.grupo_edafologico_id GROUP BY 1 ORDER BY s DESC LIMIT 1",
+    "expectedValues": [
+      "Phaeozem",
+      3260261.66
+    ],
+    "expectedAnswer": "Phaeozem is the predominant soil type in Jalisco by area (about 3.26 million hectares), ahead of Regosol and Leptosol.",
+    "notes": "INEGI Serie III soil groups (WRB classification), aggregated across all municipality fragments.",
+    "acceptable": []
+  },
+  {
+    "id": 83,
+    "answerable": true,
+    "database": "cuadernillos_geo",
+    "goldSql": "SELECT count(DISTINCT t) FROM (SELECT trim(unnest(string_to_array(acuiferos_txt, ','))) t FROM cuadernillos_tab.acuiferos_condicion_estadistica_detalle) x",
+    "expectedValues": [
+      93
+    ],
+    "expectedAnswer": "About 93 distinct aquifers are referenced as touching Jalisco municipalities, per the CONAGUA-based aquifer coverage tables.",
+    "acceptable": [],
+    "notes": "The data is organized by municipality (acuiferos_txt lists comma-separated aquifer names per municipio), not by a direct aquifer catalog, so this is a distinct-name count across all municipal rows, an approximation rather than an authoritative aquifer count."
+  },
+  {
+    "id": 84,
+    "answerable": false,
+    "database": null,
+    "goldSql": null,
+    "expectedValues": [],
+    "expectedAnswer": "Not available with confidence: the aquifer condition data is organized by municipality's dominant category, not by individual aquifer, and a single aquifer can span multiple municipalities with different dominant statuses, so a clean per-aquifer overexploitation count cannot be derived reliably.",
+    "acceptable": [
+      "16 municipalities whose dominant/majority-area aquifer condition is 'Sobreexplotado' (not the same as counting overexploited aquifers) as a rough proxy"
+    ],
+    "notes": "cuadernillos_tab.acuiferos_condicion_estadistica_resumen has a per-municipio dominant category (16 municipios show 'Sobreexplotado' as their majority condition), but this double counts/undercounts at the aquifer level since aquifers cross municipal boundaries."
+  },
+  {
+    "id": 85,
+    "answerable": true,
+    "database": "cvegeo",
+    "goldSql": "SELECT cvegeo FROM cvegeo_municipalities WHERE cve_ent=14 AND nomgeo='Tepatitlán de Morelos'",
+    "expectedValues": [
+      "14093"
+    ],
+    "expectedAnswer": "Tepatitlán de Morelos has INEGI key (cvegeo) 14093.",
+    "notes": "",
+    "acceptable": []
+  },
+  {
+    "id": 86,
+    "answerable": true,
+    "database": "cvegeo",
+    "goldSql": "SELECT count(*) FROM cvegeo_municipalities WHERE cve_ent=14",
+    "expectedValues": [
+      125
+    ],
+    "expectedAnswer": "Jalisco has 125 municipalities.",
+    "notes": "Cross-checked against censo_poblacion (also 125 non-null municipal rows).",
+    "acceptable": []
+  },
+  {
+    "id": 87,
+    "answerable": false,
+    "database": "defunciones",
+    "goldSql": "SELECT anio_registro, count(*) FROM vw_defunciones WHERE anio_registro='2024' GROUP BY 1",
+    "expectedValues": [],
+    "expectedAnswer": "Not fully available: 'last year' as of today (Sept 2026) would be 2025, but the defunciones database's most recent complete year is 2024; a good agent should clarify or offer the latest available year instead.",
+    "acceptable": [
+      "54,987 deaths registered in 2024, offered as 'the most recent year available' if the agent explains the 2025 data gap"
+    ],
+    "notes": "Ambiguous/time-relative question; today's date is 2026-09-23, so 'año pasado' = 2025, which is not present in the DB (max anio_registro = 2024)."
+  },
+  {
+    "id": 88,
+    "answerable": true,
+    "database": "censo_poblacion",
+    "goldSql": "SELECT total, total_hombres, total_mujeres FROM view_inegi_2020 WHERE entidad='Jalisco' AND nivel='Municipal' AND municipio='Guadalajara'",
+    "expectedValues": [
+      1385629,
+      666997,
+      718632
+    ],
+    "expectedAnswer": "Ambiguous request; a good answer summarizes key Guadalajara data: population 1,385,629 (2020 Census), marginalization grade 'Muy bajo' (index 60.76), and offers to narrow down (economy, health, education, crime, etc.) rather than guessing one topic.",
+    "acceptable": [
+      "Any reasonable combination of Guadalajara indicators across the available databases (population, marginación, deaths, schools, economic census, crime), as long as sources are cited and the agent offers to narrow scope"
+    ],
+    "notes": "Classic ambiguous/open request; picked population as the primary interpretation since it's the most universal 'datos de un municipio' request, but a good agent should ask what kind of data the user wants."
+  },
+  {
+    "id": 89,
+    "answerable": true,
+    "database": "censos_economicos",
+    "goldSql": "SELECT unidades_economicas FROM vw_economico_estatal_2023 WHERE cve_ent=14 AND sector IS NULL AND estrato='Suma de estratos'",
+    "expectedValues": [
+      365421
+    ],
+    "expectedAnswer": "Ambiguous ('negocios' where? statewide assumed); Jalisco has 365,421 registered economic units per the 2023 Economic Census.",
+    "acceptable": [
+      "A clarifying question asking which municipality/sector/year is also an acceptable response given the ambiguity"
+    ],
+    "notes": "No geographic scope given; assumed statewide Jalisco using the economic census (DENUE, the establishment directory, is empty)."
+  },
+  {
+    "id": 90,
+    "answerable": true,
+    "database": "censo_poblacion",
+    "goldSql": "SELECT municipio, total FROM view_inegi_2020 WHERE entidad='Jalisco' AND nivel='Municipal' AND municipio IN ('Zapopan','Guadalajara') ORDER BY total DESC",
+    "expectedValues": [
+      "Zapopan",
+      1476491,
+      "Guadalajara",
+      1385629
+    ],
+    "expectedAnswer": "Zapopan (1,476,491) has slightly more population than Guadalajara (1,385,629) per the 2020 Census.",
+    "notes": "",
+    "acceptable": []
+  },
+  {
+    "id": 91,
+    "answerable": true,
+    "database": "pobreza_multidimensional",
+    "goldSql": "SELECT anio, round(100.0*sum(pobreza_personas)/sum(poblacion),1), round(100.0*sum(pobreza_ext_personas)/sum(poblacion),1) FROM vw_pobreza_multidimencional WHERE nombre_entidad='Jalisco' GROUP BY 1 ORDER BY 1",
+    "expectedValues": [
+      2010,
+      37,
+      5.3,
+      2015,
+      34.8,
+      3.2,
+      2020,
+      32.6,
+      3.5
+    ],
+    "expectedAnswer": "Ambiguous request; a good summary: in 2020, 32.6% of Jalisco's population was in poverty (down from 34.8% in 2015) and 3.5% in extreme poverty, with Mezquitic and other Sierra Norte municipalities the most affected.",
+    "acceptable": [
+      "Any reasonable multi-year or multi-indicator summary of poverty in Jalisco from vw_pobreza_multidimencional, or a clarifying question about which year/indicator/municipality is wanted"
+    ],
+    "notes": "Open/ambiguous question; picked the 2015 vs 2020 poverty-rate trend as the most informative default summary."
+  },
+  {
+    "id": 92,
+    "answerable": true,
+    "database": "secretaria_educacion",
+    "goldSql": "SELECT count(*) FROM vw_directorio_centros_trabajo WHERE municipio ILIKE '%tlaquepaque%'",
+    "expectedValues": [
+      590
+    ],
+    "expectedAnswer": "San Pedro Tlaquepaque has 590 registered school work-centers (all educational levels combined), per the school directory snapshot.",
+    "notes": "",
+    "acceptable": []
+  },
+  {
+    "id": 93,
+    "answerable": false,
+    "database": null,
+    "goldSql": null,
+    "expectedValues": [],
+    "expectedAnswer": "Not available: nacimientos_dgis tables are empty, so 2022 births in Jalisco cannot be counted.",
+    "notes": "Same underlying issue as Q18.",
+    "acceptable": []
+  },
+  {
+    "id": 94,
+    "answerable": false,
+    "database": null,
+    "goldSql": null,
+    "expectedValues": [],
+    "expectedAnswer": "Not available: none of these databases has real-time weather data; they only contain historical statistics (population, economy, health, crime, etc.).",
+    "notes": "",
+    "acceptable": []
+  },
+  {
+    "id": 95,
+    "answerable": false,
+    "database": null,
+    "goldSql": null,
+    "expectedValues": [],
+    "expectedAnswer": "Not available: there is no political-office/government-personnel dataset in these databases (they are statistical datasets, not a directory of current officials).",
+    "notes": "",
+    "acceptable": []
+  },
+  {
+    "id": 96,
+    "answerable": false,
+    "database": null,
+    "goldSql": null,
+    "expectedValues": [],
+    "expectedAnswer": "Not available: none of the databases has tourism statistics (visitor counts, hotel occupancy, etc.) for Puerto Vallarta or any other municipality.",
+    "notes": "",
+    "acceptable": []
+  },
+  {
+    "id": 97,
+    "answerable": false,
+    "database": null,
+    "goldSql": null,
+    "expectedValues": [],
+    "expectedAnswer": "Not available: there is no traffic-accident dataset; the fiscalia database covers criminal investigations, not traffic incidents.",
+    "notes": "",
+    "acceptable": []
+  },
+  {
+    "id": 98,
+    "answerable": false,
+    "database": null,
+    "goldSql": null,
+    "expectedValues": [],
+    "expectedAnswer": "Not available: none of the databases has real-time or historical currency exchange rate data.",
+    "notes": "",
+    "acceptable": []
+  },
+  {
+    "id": 99,
+    "answerable": false,
+    "database": null,
+    "goldSql": null,
+    "expectedValues": [],
+    "expectedAnswer": "Not available: there is no electoral-results dataset in these databases (participacion_ciudadana covers citizen-participation mechanisms like referendums/plebiscites, not party vote counts).",
+    "notes": "",
+    "acceptable": []
+  },
+  {
+    "id": 100,
+    "answerable": false,
+    "database": null,
+    "goldSql": null,
+    "expectedValues": [],
+    "expectedAnswer": "Not available: none of the databases has public-transit infrastructure data (e.g. Guadalajara's light rail/Tren Ligero lines).",
+    "notes": "",
+    "acceptable": []
+  }
+]
