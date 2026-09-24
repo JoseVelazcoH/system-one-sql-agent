@@ -26,12 +26,16 @@ every schema before it can even start. This project splits that work in two:
 2. **Execute (System 2).** An LLM receives only the selected databases, with the columns of the
    most relevant tables preloaded, and writes read-only SQL to answer.
 
-<p align="center">
-  <img src="assets/flow.png" width="760" alt="How a question flows: database routing and table routing with Jev, column preload from Postgres, then execution by the LLM" />
-</p>
+## Diagram
 
 <p align="center">
-  <img src="assets/demo.gif" width="760" alt="The comparison UI answering the same question with the Jev-routed agent and the standard agent side by side" />
+  <img src="assets/flow.png" width="700" alt="How a question flows: database routing and table routing with Jev, column preload from Postgres, then execution by the LLM" />
+</p>
+
+## Demo
+
+<p align="center">
+  <img src="assets/demo.gif" width="700" alt="The comparison UI answering the same question with the Jev-routed agent and the standard agent side by side" />
 </p>
 
 ## Features
