@@ -5,11 +5,13 @@
   "scripts": {
     "catalog": "tsx scripts/build-catalog.ts",
     "ask": "tsx src/index.ts",
+    "compare": "tsx scripts/compare.ts",
     "typecheck": "tsc --noEmit",
     "dev": "tsx watch src/server.ts",
     "start": "tsx src/server.ts",
     "bench": "tsx bench/run.ts",
     "bench:grade": "tsx bench/grade.ts",
+    "bench:png": "tsx bench/export-png.ts",
     "bench:refresh": "tsx bench/refresh-answers.ts"
   },
   "author": "Jose Velazco",

@@ -1,13 +1,18 @@
 /**
  * Grades benchmark results against answers.json and writes a markdown report.
  *
- *   npm run bench:grade -- [--results bench/results/<file>.jsonl] [--concurrency N]
+ *   npm run bench:grade -- [--results bench/results/<file>.jsonl[,<file2>.jsonl,...]] [--concurrency N] [--out name]
+ *
+ * `--results` accepts a comma-separated list of files: they are merged (last record per
+ * id+mode wins) before grading, which is how a jev-bon run gets compared against an
+ * existing standard/jev run. Output is named after the first file, or `--out` when given.
  *
  * Each answer gets two independent signals:
  *   - numeric: expected values found in the text (deterministic, rounding tolerant)
  *   - jev: a Jev boolean judgment against the expected and acceptable answers
  * When they disagree the answer is marked "review" instead of guessing.
  */
+import { existsSync } from 'node:fs';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { basename } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -24,6 +29,7 @@ import {
   parseArgs,
   percentile,
   readJsonl,
+  RESULTS_DIR,
   type GoldAnswer,
   type Question,
   type RunRecord,
@@ -50,12 +56,17 @@ const MAGNITUDE_WORDS: [RegExp, number][] = [
 ];
 
 const args = parseArgs(process.argv.slice(2));
-const resultsUrl =
-  typeof args.results === 'string' ? pathToFileURL(args.results) : await latestResults();
+const resultsUrls =
+  typeof args.results === 'string'
+    ? args.results.split(',').map((path) => pathToFileURL(path.trim()))
+    : [await latestResults()];
+const resultsUrl = resultsUrls[0];
 const concurrency = Number(args.concurrency ?? 3);
 
 /** Every plausible reading of each number in the text (1,234.5 vs 1.234,5, "3 mil"). */
-function extractNumbers(text: string): number[] {
+function extractNumbers(raw: string): number[] {
+  // Spaces as thousands separators ("10 348", "939 969,53", also no-break spaces) become plain digits.
+  const text = raw.replace(/(\d)[   ](?=\d{3}(?!\d))/g, '$1');
   const candidates: number[] = [];
   for (const match of text.matchAll(/-?\d(?:[\d.,]*\d)?/g)) {
     const token = match[0];
@@ -139,10 +150,56 @@ function decide(gold: GoldAnswer, numeric: NumericCheck, jev: number | undefined
 
 const questions = new Map((await loadQuestions()).map((question) => [question.id, question]));
 const gold = new Map((await loadAnswers()).map((answer) => [answer.id, answer]));
-const records = await readJsonl<RunRecord>(resultsUrl);
+// --label mode=Name,mode2=Name2 names the series of runs recorded without a label (older runs).
+const labelOverrides = new Map(
+  typeof args.label === 'string'
+    ? args.label.split(',').map((pair) => {
+        const [mode, ...rest] = pair.split('=');
+        return [mode.trim(), rest.join('=').trim()] as const;
+      })
+    : [],
+);
+const records = (await Promise.all(resultsUrls.map((url) => readJsonl<RunRecord>(url))))
+  .flat()
+  .map((record) => (record.label || !labelOverrides.has(record.mode) ? record : { ...record, label: labelOverrides.get(record.mode) }));
 
-// Keep the last record per (id, mode), so resumed runs replace earlier failures.
-const latest = [...new Map(records.map((record) => [`${record.id}:${record.mode}`, record])).values()];
+// Keep the last record per (id, mode, model, label), so resumed runs replace earlier failures
+// while merged files with the same mode but a different executor model (or a different
+// --label) stay as separate rows.
+const latest = [
+  ...new Map(
+    records.map((record) => [`${record.id}:${record.mode}:${record.model ?? ''}:${record.label ?? ''}`, record]),
+  ).values(),
+];
+
+const outputBase =
+  typeof args.out === 'string'
+    ? new URL(args.out, RESULTS_DIR).pathname.replace(/\.jsonl$/, '')
+    : resultsUrl.pathname.replace(/\.jsonl$/, '');
+
+// --reuse-judge keeps the Jev judge probability from the previous grade of the same run (matched
+// by id, mode, model, label and start time), so charts and the report can be regenerated without
+// paying for the judge again or letting its verdicts drift. The numeric check is always recomputed.
+const runKey = (record: RunRecord) =>
+  `${record.id}:${record.mode}:${record.model ?? ''}:${record.startedAt ?? ''}`;
+const previousJudge = new Map<string, number>();
+if (args['reuse-judge']) {
+  // `--reuse-judge <file.graded.jsonl>` reuses exactly that grade, so charts in another size
+  // or name keep identical verdicts. A bare flag falls back to this --out name and the default
+  // grade of each results file.
+  const gradedFiles = new Set(typeof args['reuse-judge'] === 'string' ? [args['reuse-judge']] : [
+    `${outputBase}.graded.jsonl`,
+    ...resultsUrls.map((url) => url.pathname.replace(/\.jsonl$/, '.graded.jsonl')),
+  ]);
+  for (const file of [...gradedFiles].filter((path) => existsSync(path))) {
+    for (const record of await readJsonl<GradedRecord>(pathToFileURL(file))) {
+      // Earlier files in the list win: the --out grade is the most specific one.
+      if (typeof record.jevProbability === 'number' && !previousJudge.has(runKey(record))) {
+        previousJudge.set(runKey(record), record.jevProbability);
+      }
+    }
+  }
+}
 
 async function gradeRecord(record: RunRecord): Promise<GradedRecord> {
   const question = questions.get(record.id)!;
@@ -153,7 +210,8 @@ async function gradeRecord(record: RunRecord): Promise<GradedRecord> {
     return { ...base, numeric: 'n/a', verdict: 'failed' };
   }
   const numeric = numericCheck(record.text, answer);
-  const jevProbability = await jevJudgeWithRetry(question, answer, record.text);
+  const jevProbability =
+    previousJudge.get(runKey(record)) ?? (await jevJudgeWithRetry(question, answer, record.text));
   return { ...base, numeric, jevProbability, verdict: decide(answer, numeric, jevProbability) };
 }
 
@@ -191,8 +249,22 @@ function totalCost(
   return (values as number[]).reduce((sum, value) => sum + value, 0);
 }
 
-function modeSummary(mode: AgentMode) {
-  const runs = graded.filter((record) => record.mode === mode);
+// A series is normally one per mode. When merged result files run the same mode against
+// different executor models, each (mode, model) pair becomes its own series instead, so the
+// report and charts do not average unrelated runs together. When rows carry a `--label`, the
+// label takes precedence and is used verbatim as the series key and name.
+const modelsByMode = new Map<AgentMode, Set<string>>();
+for (const record of graded) {
+  if (!record.model) continue;
+  const models = modelsByMode.get(record.mode) ?? new Set<string>();
+  models.add(record.model);
+  modelsByMode.set(record.mode, models);
+}
+const seriesKeyOf = (record: RunRecord) =>
+  record.label ?? ((modelsByMode.get(record.mode)?.size ?? 0) > 1 ? `${record.mode}::${record.model}` : record.mode);
+
+function modeSummary(key: string) {
+  const runs = graded.filter((record) => seriesKeyOf(record) === key);
   const ok = runs.filter((record) => record.verdict !== 'failed');
   const answerable = ok.filter((record) => record.answerable);
   const unanswerable = ok.filter((record) => !record.answerable);
@@ -203,7 +275,7 @@ function modeSummary(mode: AgentMode) {
   const total = totalCost(ok, (costs) => costs.totalUsd);
   const correct = ok.filter((record) => record.verdict === 'correct').length;
   return {
-    mode,
+    key,
     runs: runs.length,
     failed: runs.length - ok.length,
     accuracy: pct(answerable.filter((r) => r.verdict === 'correct').length, answerable.length),
@@ -235,8 +307,56 @@ function modeSummary(mode: AgentMode) {
   };
 }
 
-const modes = [...new Set(graded.map((record) => record.mode))];
-const summaries = modes.map(modeSummary);
+const MODE_NAMES: Record<AgentMode, string> = { jev: 'With JEV', standard: 'Standard', 'jev-bon': 'Best of N' };
+const MODE_COLORS: Record<AgentMode, string> = { jev: COLORS.jev, standard: COLORS.standard, 'jev-bon': '#3a86ff' };
+// Fixed colors for the standard "Sol" comparison, keyed by the exact --label value.
+const LABEL_COLORS: Record<string, string> = {
+  Sol: '#d9376e',
+  'Sol + Jev': '#ff8e3c',
+  'Luna + Jev': '#3a86ff',
+};
+const EXTRA_COLORS = ['#7209b7', '#2a9d8f', '#e9c46a', '#ff006e'];
+
+// Series order follows first appearance across the --results files (in the order given), not
+// grading order, so the user controls it via --results file order / --label.
+const seriesKeys = [...new Set(records.map(seriesKeyOf))].filter((key) =>
+  graded.some((record) => seriesKeyOf(record) === key),
+);
+const usedColors = new Set<string>();
+let extraColorIndex = 0;
+function colorForMode(mode: AgentMode) {
+  const base = MODE_COLORS[mode] ?? COLORS.muted;
+  if (!usedColors.has(base)) {
+    usedColors.add(base);
+    return base;
+  }
+  const color = EXTRA_COLORS[extraColorIndex++ % EXTRA_COLORS.length];
+  usedColors.add(color);
+  return color;
+}
+function colorForKey(key: string, mode: AgentMode) {
+  if (LABEL_COLORS[key] && !usedColors.has(LABEL_COLORS[key])) {
+    usedColors.add(LABEL_COLORS[key]);
+    return LABEL_COLORS[key];
+  }
+  return colorForMode(mode);
+}
+const seriesStyle = new Map(
+  seriesKeys.map((key) => {
+    const sample = graded.find((record) => seriesKeyOf(record) === key)!;
+    const mode = sample.mode;
+    const model = sample.model;
+    const name = sample.label
+      ? sample.label
+      : model && (modelsByMode.get(mode)?.size ?? 0) > 1
+        ? `${MODE_NAMES[mode] ?? mode} (${model})`
+        : (MODE_NAMES[mode] ?? mode);
+    return [key, { name, color: colorForKey(key, mode), mode }];
+  }),
+);
+const seriesLabel = (key: string) => seriesStyle.get(key)!.name;
+
+const summaries = seriesKeys.map(modeSummary);
 const row = (cells: (string | number)[]) => `| ${cells.join(' | ')} |`;
 const metricRows: [string, keyof ReturnType<typeof modeSummary>][] = [
   ['Runs', 'runs'],
@@ -279,26 +399,26 @@ const cell = (record: GradedRecord | undefined) =>
 const report = [
   `# Benchmark report`,
   '',
-  `- Results: \`${resultsUrl.pathname}\``,
+  `- Results: ${resultsUrls.map((url) => `\`${url.pathname}\``).join(', ')}`,
   `- Executor model: \`${graded.find((r) => r.model)?.model ?? 'unknown'}\``,
   `- Judge: numeric check + \`${config.routerModel}\` (threshold ${JUDGE_THRESHOLD})`,
   '',
   '## Summary',
   '',
-  row(['Metric', ...modes]),
-  row(['---', ...modes.map(() => '---')]),
+  row(['Metric', ...seriesKeys.map(seriesLabel)]),
+  row(['---', ...seriesKeys.map(() => '---')]),
   ...metricRows.map(([label, key]) => row([label, ...summaries.map((summary) => summary[key])])),
   '',
   '## Accuracy by category',
   '',
-  row(['Category', ...modes]),
-  row(['---', ...modes.map(() => '---')]),
+  row(['Category', ...seriesKeys.map(seriesLabel)]),
+  row(['---', ...seriesKeys.map(() => '---')]),
   ...categories.map((category) =>
     row([
       category,
-      ...modes.map((mode) => {
+      ...seriesKeys.map((key) => {
         const runs = graded.filter(
-          (r) => r.mode === mode && r.category === category && r.verdict !== 'failed',
+          (r) => seriesKeyOf(r) === key && r.category === category && r.verdict !== 'failed',
         );
         return pct(runs.filter((r) => r.verdict === 'correct').length, runs.length);
       }),
@@ -307,15 +427,15 @@ const report = [
   '',
   '## Per question',
   '',
-  row(['#', 'Category', 'Answerable', ...modes]),
-  row(['---', '---', '---', ...modes.map(() => '---')]),
+  row(['#', 'Category', 'Answerable', ...seriesKeys.map(seriesLabel)]),
+  row(['---', '---', '---', ...seriesKeys.map(() => '---')]),
   ...byQuestion.map((id) => {
     const records = graded.filter((record) => record.id === id);
     return row([
       id,
       records[0].category,
       records[0].answerable ? 'yes' : 'no',
-      ...modes.map((mode) => cell(records.find((record) => record.mode === mode))),
+      ...seriesKeys.map((key) => cell(records.find((record) => seriesKeyOf(record) === key))),
     ]);
   }),
   '',
@@ -332,10 +452,6 @@ const report = [
 
 // ---------- charts ----------
 
-const MODE_STYLE: Record<AgentMode, { name: string; color: string }> = {
-  jev: { name: 'With JEV', color: COLORS.jev },
-  standard: { name: 'Standard', color: COLORS.standard },
-};
 const CATEGORY_LABELS: Record<string, string> = {
   count: 'Counts',
   lookup: 'Lookups',
@@ -346,25 +462,35 @@ const CATEGORY_LABELS: Record<string, string> = {
   out_of_scope: 'Out of scope',
 };
 
-const completed = (mode: AgentMode, filter: (record: GradedRecord) => boolean = () => true) =>
-  graded.filter((record) => record.mode === mode && record.verdict !== 'failed' && filter(record));
+const completed = (key: string, filter: (record: GradedRecord) => boolean = () => true) =>
+  graded.filter((record) => seriesKeyOf(record) === key && record.verdict !== 'failed' && filter(record));
 
 /** Share of correct verdicts, or null when there is nothing to grade (drawn as N/A). */
 function accuracyOf(records: GradedRecord[]) {
   return records.length ? (records.filter((r) => r.verdict === 'correct').length / records.length) * 100 : null;
 }
 
-const chartModes = modes.filter((mode): mode is AgentMode => mode in MODE_STYLE);
-const seriesFor = (valueOf: (mode: AgentMode) => (number | null)[]) =>
-  chartModes.map((mode) => ({ ...MODE_STYLE[mode], values: valueOf(mode) }));
-const percentLabel = (value: number) => `${value.toFixed(1)}%`;
+const seriesFor = (valueOf: (key: string) => (number | null)[]) =>
+  seriesKeys.map((key) => ({ name: seriesStyle.get(key)!.name, color: seriesStyle.get(key)!.color, values: valueOf(key) }));
 const secondsLabel = (value: number) => `${value.toFixed(1)} s`;
 const tokensLabel = (value: number) =>
   value >= 1000 ? `${(value / 1000).toFixed(value >= 10_000 ? 0 : 1)}K` : String(Math.round(value));
 const nullable = (value: number) => (Number.isNaN(value) ? null : value);
+/** Formats a USD amount with enough significant digits for small per-question costs. */
+function usdLabel(value: number) {
+  if (value === 0) return '$0';
+  const decimals = value < 0.01 ? 4 : value < 1 ? 3 : 2;
+  return `$${value.toFixed(decimals)}`;
+}
+
+
+// --size WxH changes the card size of the grouped charts, e.g. 1200x675 for 16:9.
+const sizeMatch = typeof args.size === 'string' ? args.size.match(/^(\d+)x(\d+)$/) : null;
+const size = sizeMatch ? { width: Number(sizeMatch[1]), height: Number(sizeMatch[2]) } : undefined;
 
 const charts: Record<string, string> = {
   accuracy: groupedBarChart({
+    size,
     title: 'Accuracy by question category',
     subtitle: 'Correct answers, including correctly refusing questions the data cannot answer',
     groups: ['All', ...categories.map((category) => CATEGORY_LABELS[category] ?? category)],
@@ -372,11 +498,13 @@ const charts: Record<string, string> = {
       accuracyOf(completed(mode)),
       ...categories.map((category) => accuracyOf(completed(mode, (r) => r.category === category))),
     ]),
-    format: percentLabel,
+    // Whole percents keep three labels per group readable; the report keeps one decimal.
+    format: (value) => `${Math.round(value)}%`,
     tickFormat: (value) => `${value}%`,
     max: 100,
   }),
   latency: groupedBarChart({
+    size,
     title: 'Response time',
     subtitle: 'Wall-clock seconds per question, failed runs excluded',
     groups: ['p50', 'Average', 'p95'],
@@ -388,6 +516,7 @@ const charts: Record<string, string> = {
     tickFormat: (value) => `${value} s`,
   }),
   tokens: groupedBarChart({
+    size,
     title: 'Tokens per question (input + output)',
     subtitle: 'Average by question category',
     groups: ['All', ...categories.map((category) => CATEGORY_LABELS[category] ?? category)],
@@ -404,9 +533,18 @@ const charts: Record<string, string> = {
     ),
     format: tokensLabel,
   }),
+  costs: groupedBarChart({
+    size,
+    title: 'Total cost (USD)',
+    subtitle: 'Billed executor cost plus Jev cost, summed over every graded question',
+    groups: ['Total cost'],
+    series: seriesFor((key) => [totalCost(completed(key), (costs) => costs.totalUsd)]),
+    format: usdLabel,
+    tickFormat: usdLabel,
+  }),
 };
 
-const base = resultsUrl.pathname.replace(/\.jsonl$/, '');
+const base = outputBase;
 const chartsDir = `${base}-charts`;
 await mkdir(chartsDir, { recursive: true });
 await Promise.all(
@@ -424,6 +562,7 @@ const CSV_COLUMNS: [string, (record: GradedRecord) => unknown][] = [
   ['answerable', (r) => r.answerable],
   ['mode', (r) => r.mode],
   ['model', (r) => r.model],
+  ['label', (r) => r.label],
   ['verdict', (r) => r.verdict],
   ['duration_ms', (r) => r.durationMs?.toFixed(0)],
   ['route_ms', (r) => r.timings?.routeMs?.toFixed(0)],
@@ -463,7 +602,7 @@ await writeFile(
       model: graded.find((r) => r.model)?.model ?? null,
       metrics: metricRows.map(([label, key]) => ({
         label,
-        values: Object.fromEntries(summaries.map((s) => [s.mode, s[key]])),
+        values: Object.fromEntries(summaries.map((s) => [s.key, s[key]])),
       })),
       charts: Object.keys(charts).map((name) => `${basename(chartsDir)}/${name}.svg`),
       questions: byQuestion.map((id) => {
@@ -475,7 +614,7 @@ await writeFile(
           answerable: records[0].answerable,
           runs: Object.fromEntries(
             records.map((r) => [
-              r.mode,
+              seriesKeyOf(r),
               {
                 verdict: r.verdict,
                 durationMs: r.durationMs ?? null,

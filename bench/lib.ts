@@ -26,6 +26,8 @@ export type RunRecord = {
   startedAt: string;
   /** Wall-clock time of the successful attempt, as measured by runAgent. */
   durationMs?: number;
+  /** Optional series label set with --label; takes precedence over mode/model for grouping. */
+  label?: string;
 } & Partial<Omit<AgentRun, 'mode' | 'durationMs'>>;
 
 async function readJson<T>(url: URL, what: string): Promise<T> {

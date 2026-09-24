@@ -46,6 +46,18 @@ const schema = z.object({
     .object({
       questions: z.string().default('bench/questions.json'),
       answers: z.string().default('bench/answers.json'),
+      /** Optional logo (png/svg) embedded as a subtle watermark on every chart. */
+      watermark: z.string().optional(),
+    })
+    .prefault({}),
+  selector: z
+    .object({
+      /** Number of candidate answers generated in parallel for jev-bon mode. */
+      candidates: z.number().int().positive().default(4),
+      /** Sampling temperature for every candidate after the first (which keeps executor.temperature). */
+      temperature: z.number().min(0).max(2).default(0.7),
+      /** Minimum share of candidates that must agree on a number for consensus to skip the Jev call. */
+      threshold: z.number().min(0).max(1).default(0.5),
     })
     .prefault({}),
 });
@@ -88,5 +100,11 @@ export const config = {
   benchmark: {
     questionsPath: fromConfig(file.benchmark.questions),
     answersPath: fromConfig(file.benchmark.answers),
+    watermarkPath: file.benchmark.watermark ? fromConfig(file.benchmark.watermark) : undefined,
+  },
+  selector: {
+    candidates: file.selector.candidates,
+    temperature: file.selector.temperature,
+    threshold: file.selector.threshold,
   },
 };
