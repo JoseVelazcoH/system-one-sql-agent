@@ -1,15 +1,21 @@
-import 'dotenv/config';
 import pg from 'pg';
+import { config } from './config.js';
 
 const MAX_ROWS = 100;
 const STATEMENT_TIMEOUT = '15s';
 
 const pools = new Map<string, pg.Pool>();
 
+/** Connection settings for one database on the configured server. */
+export function connectionFor(database: string): pg.ClientConfig {
+  const { host, port, user, password } = config.postgres;
+  return { host, port, user, password, database };
+}
+
 function poolFor(database: string): pg.Pool {
   let pool = pools.get(database);
   if (!pool) {
-    pool = new pg.Pool({ database, max: 2 });
+    pool = new pg.Pool({ ...connectionFor(database), max: 2 });
     pools.set(database, pool);
   }
   return pool;

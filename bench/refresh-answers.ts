@@ -5,8 +5,9 @@
  *   npm run bench:refresh -- --write overwrite expectedValues with fresh results
  */
 import { writeFile } from 'node:fs/promises';
+import { config } from '../src/config.js';
 import { closePools, readOnlyQuery } from '../src/db.js';
-import { BENCH_DIR, loadAnswers, normalizeValue, parseArgs } from './lib.js';
+import { loadAnswers, normalizeValue, parseArgs } from './lib.js';
 
 const args = parseArgs(process.argv.slice(2));
 const answers = await loadAnswers();
@@ -50,7 +51,7 @@ try {
 }
 
 if (args.write && failures > 0) {
-  await writeFile(new URL('answers.json', BENCH_DIR), JSON.stringify(answers, null, 2) + '\n');
+  await writeFile(config.benchmark.answersPath, JSON.stringify(answers, null, 2) + '\n');
   console.log('answers.json updated. Review expectedAnswer texts for the changed ids.');
 }
 console.log(failures === 0 ? 'All gold SQL results match.' : `${failures} answers need attention.`);

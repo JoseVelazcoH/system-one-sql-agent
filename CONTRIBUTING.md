@@ -17,8 +17,9 @@ Node.js 22+, [pnpm](https://pnpm.io), and a PostgreSQL server with some database
 git clone https://github.com/JoseVelazcoH/system-one-sql-agent.git
 cd system-one-sql-agent
 pnpm install
-cp .env.example .env   # fill in the keys and the Postgres connection
-pnpm catalog           # build catalog.json from your databases
+cp config.example.yaml config.yaml   # your model, databases and benchmark files
+cp .env.example .env                 # your API keys and database password
+pnpm catalog                         # build catalog.json from your databases
 pnpm dev               # UI on http://localhost:3000, restarts on code changes
 ```
 
@@ -39,7 +40,7 @@ the feature or bug you want to propose does not already exist.
 
 A bug report must include the following:
 
-1. The commit you are running and the executor model (`AI_MODEL`).
+1. The commit you are running and the executor model (`executor` in `config.yaml`).
 2. The question you asked and the exact steps to reproduce the bug.
 3. A proposed fix or a hypothesis about the cause.
 

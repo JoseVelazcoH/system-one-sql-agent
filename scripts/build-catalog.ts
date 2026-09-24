@@ -1,19 +1,22 @@
 import { existsSync } from 'node:fs';
 import { readFile, writeFile } from 'node:fs/promises';
 import pg from 'pg';
-import 'dotenv/config';
 import type { DatabaseEntry, TableEntry } from '../src/catalog.js';
+import { config } from '../src/config.js';
+import { connectionFor } from '../src/db.js';
 
 const MAX_DESCRIPTION_LENGTH = 1200;
-const NOISE_TABLE = /^(\w+\.)?(flyway_schema_history|cvegeo_|cat_)/;
 
-const catalogUrl = new URL('../catalog.json', import.meta.url);
-const excluded = new Set(
-  (process.env.EXCLUDED_DATABASES ?? '').split(',').map((name) => name.trim()),
-);
+const catalogUrl = config.catalogPath;
+const { databases: allowlist, exclude } = config.postgres;
+const excluded = new Set(exclude);
+
+/** Matches the bare table name, so "schema.table" and "table" behave the same. */
+const ignoredInDescription = (name: string) =>
+  config.catalogIgnore.some((pattern) => pattern.test(name.split('.').at(-1)!));
 
 async function withClient<T>(database: string, fn: (client: pg.Client) => Promise<T>) {
-  const client = new pg.Client({ database });
+  const client = new pg.Client(connectionFor(database));
   await client.connect();
   try {
     return await fn(client);
@@ -28,7 +31,9 @@ async function listDatabases() {
       `select datname as name, shobj_description(oid, 'pg_database') as comment
          from pg_database where not datistemplate order by datname`,
     );
-    return rows.filter((row) => !excluded.has(row.name));
+    return rows.filter((row) =>
+      allowlist ? allowlist.includes(row.name) : !excluded.has(row.name),
+    );
   });
 }
 
@@ -48,7 +53,7 @@ async function listTables(database: string): Promise<TableEntry[]> {
 
 function describe(databaseComment: string | null, tables: TableEntry[]): string {
   const relevant = tables
-    .filter((table) => !NOISE_TABLE.test(table.name))
+    .filter((table) => !ignoredInDescription(table.name))
     .map((table) => (table.comment ? `${table.name} (${table.comment})` : table.name));
   const text = [databaseComment, `Tables: ${relevant.join('; ')}`].filter(Boolean).join('. ');
   return text.slice(0, MAX_DESCRIPTION_LENGTH);
@@ -72,4 +77,4 @@ for (const database of await listDatabases()) {
 }
 
 await writeFile(catalogUrl, JSON.stringify(catalog, null, 2) + '\n');
-console.log(`Wrote ${catalog.length} databases to catalog.json`);
+console.log(`Wrote ${catalog.length} databases to ${catalogUrl.pathname}`);

@@ -1,0 +1,42 @@
+# system-one-sql-agent configuration.
+# Copy this file to config.yaml (ignored by git) and edit it.
+# Secrets never go here: each *Env key names the environment variable (or .env entry) that holds them.
+
+# The LLM that writes the SQL and the answer (System 2).
+executor:
+  provider: openrouter          # openai | openrouter
+  model: openai/gpt-5.6-luna    # openai: "gpt-4.1-mini"; openrouter: "openai/gpt-5.6-luna"
+  temperature: 0.1              # ignored by reasoning models
+  apiKeyEnv: AI_MODEL_API_KEY
+
+# The System One model that picks databases and tables.
+# It runs on Vercel AI Gateway and reads the AI_GATEWAY_API_KEY environment variable.
+router:
+  model: typesafe-ai/jev
+  databaseThreshold: 0.5        # minimum probability for a database to be used
+  tableThreshold: 0.6           # minimum probability for a table to be preloaded
+  maxPreloadedTables: 6         # keeps the executor prompt small
+
+# The PostgreSQL server that holds your databases. Only Postgres is supported for now.
+postgres:
+  host: localhost
+  port: 5432
+  user: postgres
+  passwordEnv: PGPASSWORD
+  # Either list the databases to use...
+  # databases: [sales, hr, inventory]
+  # ...or use every database on the server except these:
+  exclude: [postgres]
+
+# Built with `pnpm catalog`. Review and rewrite the generated descriptions: routing depends on them.
+catalog:
+  path: catalog.json
+  # Tables left out of the descriptions the router reads (regexes on the table name).
+  descriptionIgnore:
+    - ^flyway_schema_history$
+
+# Your own questions and gold answers. The example dataset targets public statistics of Mexico;
+# see docs/features.md for the file format.
+benchmark:
+  questions: examples/mexico-public-data/questions.json
+  answers: examples/mexico-public-data/answers.json

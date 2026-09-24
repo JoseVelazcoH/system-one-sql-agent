@@ -1,7 +1,7 @@
 import { readdir, readFile } from 'node:fs/promises';
+import { config } from '../src/config.js';
 import type { AgentMode, AgentRun } from '../src/pipeline.js';
 
-export const BENCH_DIR = new URL('./', import.meta.url);
 export const RESULTS_DIR = new URL('./results/', import.meta.url);
 
 export type Question = { id: number; category: string; question: string };
@@ -28,12 +28,15 @@ export type RunRecord = {
   durationMs?: number;
 } & Partial<Omit<AgentRun, 'mode' | 'durationMs'>>;
 
-async function readJson<T>(name: string): Promise<T> {
-  return JSON.parse(await readFile(new URL(name, BENCH_DIR), 'utf8'));
+async function readJson<T>(url: URL, what: string): Promise<T> {
+  const text = await readFile(url, 'utf8').catch(() => {
+    throw new Error(`Benchmark ${what} not found at ${url.pathname}. Check benchmark.${what} in config.yaml.`);
+  });
+  return JSON.parse(text);
 }
 
-export const loadQuestions = () => readJson<Question[]>('questions.json');
-export const loadAnswers = () => readJson<GoldAnswer[]>('answers.json');
+export const loadQuestions = () => readJson<Question[]>(config.benchmark.questionsPath, 'questions');
+export const loadAnswers = () => readJson<GoldAnswer[]>(config.benchmark.answersPath, 'answers');
 
 export async function readJsonl<T>(url: URL): Promise<T[]> {
   const text = await readFile(url, 'utf8').catch(() => '');
