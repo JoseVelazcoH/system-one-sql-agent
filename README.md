@@ -46,7 +46,8 @@ See [docs/features.md](docs/features.md) for how each piece works.
 
 100 questions written like a real user would ask them, without looking at the schemas. 75 can
 be answered with the data and 25 cannot (out-of-scope topics or data that is not loaded), so
-the benchmark also measures hallucinations. Both agents use `gpt-5.6-luna` as the executor.
+the benchmark also measures hallucinations. Both agents use `openai/gpt-6-sol` (through
+OpenRouter) as the executor, and see the same 30 Postgres databases.
 
 <p align="center">
   <img src="assets/benchmark/accuracy.png" width="760" alt="Accuracy by question category" />
@@ -62,31 +63,37 @@ the benchmark also measures hallucinations. Both agents use `gpt-5.6-luna` as th
 
 | Metric | With Jev routing | Standard agent |
 | --- | --- | --- |
-| Accuracy on answerable questions | 48.6% | **61.3%** |
-| Hallucination rate on unanswerable questions | **28.0%** | 52.0% |
-| Out-of-scope questions answered correctly | **100%** | 57.1% |
-| Average input tokens per question | **12,372** | 74,150 |
-| Latency p50 | **9.3 s** | 14.0 s |
-| Executor time (average) | **8.9 s** | 14.8 s |
-| Latency p95 | 38.9 s | **28.7 s** |
+| Accuracy on answerable questions | 59.7% | **62.7%** |
+| Hallucination rate on unanswerable questions | **0.0%** | 20.0% |
+| Out-of-scope questions answered correctly | **100%** | 71.4% |
+| Average input tokens per question | **11,071** | 66,665 |
+| Estimated cost per question (list price) | **$0.026** | $0.138 |
+| Latency p50 | **13.6 s** | 14.3 s |
+| Executor time (average) | **11.6 s** | 16.7 s |
+| Latency p95 | 42.2 s | **37.9 s** |
 
 **p50** is the median: half of the questions were answered faster than that. **p95** is the
 tail: 95% were faster and the slowest 5% took longer, so it shows the worst typical case.
 
 What the numbers say:
 
-- **Routing cuts input tokens by ~6x** and makes the executor ~40% faster, because the LLM no
+- **It never hallucinated.** On the 25 questions the data cannot answer, the routed agent
+  always said so; the standard agent invented an answer in 1 of every 5.
+- **Overall it is more accurate: 70.1% vs 67.0%.** It is 3 points behind on answerable
+  questions but ahead on counts, lookups and rankings; it loses on ambiguous questions, where
+  reading every schema helps guess what the user meant.
+- **Routing cuts input tokens by ~6x** and makes the executor ~30% faster, because the LLM no
   longer reads 30 schemas.
-- **It hallucinates far less.** When the data is not there, the router stops the question
-  before the LLM can invent an answer.
-- **It is less accurate on answerable questions.** Most of the gap comes from the router
-  discarding a database that was actually needed (threshold and catalog descriptions still
-  need calibration).
-- **The p95 latency is dominated by AI Gateway retries during outages**, not by Jev itself;
-  warm routing takes about 1 s.
+- **It is cheaper, by less than the tokens suggest.** At list price it costs about 5x less
+  per question; the billed difference is smaller (roughly 2-3x in spot checks) because the
+  standard agent's repeated prompt benefits from prompt caching.
+- **The p95 latency is dominated by AI Gateway retries during outages**, not by Jev itself:
+  Jev spends about 0.15 s per call inside the provider.
 
-Treat these as a first baseline rather than a verdict: thresholds are not tuned yet and 23
-answers were flagged for manual review.
+Treat these as a baseline rather than a verdict: thresholds are not tuned yet, 3 routed runs
+failed on gateway outages (excluded), and 27 answers were flagged for manual review. Earlier
+runs with `gpt-5.6-luna` showed the same token savings but a larger accuracy gap (49% vs
+61%), so a stronger executor narrows the difference.
 
 ## Install
 
@@ -98,8 +105,9 @@ OpenAI or OpenRouter key (for the executor).
 git clone https://github.com/JoseVelazcoH/system-one-sql-agent.git
 cd system-one-sql-agent
 pnpm install
-cp .env.example .env   # fill in the keys and the Postgres connection
-pnpm catalog           # build catalog.json from your databases
+cp config.example.yaml config.yaml   # your model, databases and benchmark files
+cp .env.example .env                 # your API keys and database password
+pnpm catalog                         # build catalog.json from your databases
 ```
 
 `catalog.json` holds a short description of every database and table. **Routing quality
@@ -127,18 +135,44 @@ pnpm bench:refresh     # re-run the gold SQL to check the answers are still vali
 
 ## Configuration
 
-| Variable | Default | Purpose |
-| --- | --- | --- |
-| `AI_MODEL` | - | Executor as `provider:model`, e.g. `openrouter:openai/gpt-5.6-luna` |
-| `AI_MODEL_API_KEY` | - | Key for the executor provider |
-| `AI_MODEL_TEMPERATURE` | `0.1` | Ignored by reasoning models |
-| `AI_GATEWAY_API_KEY` | - | Vercel AI Gateway key, used for Jev |
-| `ROUTER_THRESHOLD` | `0.5` | Minimum Jev probability for a database to be used |
-| `TABLE_THRESHOLD` | `0.6` | Minimum Jev probability for a table to be preloaded |
-| `MAX_PRELOADED_TABLES` | `6` | Cap on preloaded tables, to keep the prompt small |
-| `EXCLUDED_DATABASES` | - | Databases never offered to the router |
-| `PGHOST`, `PGPORT`, `PGUSER`, `PGPASSWORD` | - | Standard Postgres connection settings |
-| `HOST`, `PORT` | `127.0.0.1`, `3000` | Where the UI listens |
+Everything that is specific to you lives in two files that git ignores:
+
+- **`config.yaml`**: your executor model, router thresholds, Postgres server, which databases to
+  use, and your benchmark files. Start from the commented
+  [`config.example.yaml`](config.example.yaml).
+- **`.env`**: secrets only. The YAML never holds a key: it names the variable that does
+  (`apiKeyEnv: AI_MODEL_API_KEY`), so a config file can be shared safely.
+
+```yaml
+executor:
+  provider: openrouter          # openai | openrouter
+  model: openai/gpt-5.6-luna
+  apiKeyEnv: AI_MODEL_API_KEY
+router:
+  databaseThreshold: 0.5
+  tableThreshold: 0.6
+postgres:
+  host: localhost
+  user: postgres
+  passwordEnv: PGPASSWORD
+  databases: [sales, hr, inventory]   # or `exclude: [...]` to use the rest of the server
+benchmark:
+  questions: my-data/questions.json
+  answers: my-data/answers.json
+```
+
+To bring your own benchmark, write your questions and gold answers in the format described in
+[docs/features.md](docs/features.md#bring-your-own-benchmark) and point `benchmark` at them.
+The repo ships an example dataset about public statistics of Mexico in
+[`examples/mexico-public-data`](examples/mexico-public-data).
+
+| Environment variable | Purpose |
+| --- | --- |
+| `AI_MODEL_API_KEY` | Executor provider key (name configurable) |
+| `AI_GATEWAY_API_KEY` | Vercel AI Gateway key, used by Jev |
+| `PGPASSWORD` | Postgres password (name configurable) |
+| `CONFIG_FILE` | Use another config file instead of `config.yaml` |
+| `HOST`, `PORT` | Where the UI listens (`127.0.0.1`, `3000`) |
 
 The UI has no authentication and `/bench` can start paid LLM runs, so it only listens on
 localhost by default. Put it behind authentication before exposing it with `HOST=0.0.0.0`.
