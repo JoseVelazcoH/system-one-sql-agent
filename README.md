@@ -30,6 +30,10 @@ every schema before it can even start. This project splits that work in two:
   <img src="assets/flow.png" width="760" alt="How a question flows: database routing and table routing with Jev, column preload from Postgres, then execution by the LLM" />
 </p>
 
+<p align="center">
+  <img src="assets/demo.gif" width="760" alt="The comparison UI answering the same question with the Jev-routed agent and the standard agent side by side" />
+</p>
+
 ## Features
 
 - **Two-stage routing** - one Jev call picks the databases (boolean question per database), a
