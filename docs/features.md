@@ -10,12 +10,12 @@ question
    ▼
 ┌──────────────────────┐   one boolean question per database
 │ 1. Database routing  │── Jev: "does this database contain the data?"
-└──────────────────────┘   keeps every database >= ROUTER_THRESHOLD
+└──────────────────────┘   keeps every database >= databaseThreshold
    │  (none selected → "no database can answer", the LLM is never called)
    ▼
 ┌──────────────────────┐   one boolean question per table of the chosen databases
 │ 2. Table routing     │── Jev: "is this table needed to write the query?"
-└──────────────────────┘   keeps the top MAX_PRELOADED_TABLES >= TABLE_THRESHOLD
+└──────────────────────┘   keeps the top maxPreloadedTables >= tableThreshold
    │
    ▼
 ┌──────────────────────┐   columns of the selected tables are read from Postgres
@@ -49,9 +49,9 @@ both are passed to the executor.
 
 | Knob | Effect of raising it | Effect of lowering it |
 | --- | --- | --- |
-| `ROUTER_THRESHOLD` | fewer databases, fewer tokens, more "no data" misses | more databases, more tokens |
-| `TABLE_THRESHOLD` | fewer preloaded tables | more columns in the prompt |
-| `MAX_PRELOADED_TABLES` | more context for the executor | smaller prompt |
+| `router.databaseThreshold` | fewer databases, fewer tokens, more "no data" misses | more databases, more tokens |
+| `router.tableThreshold` | fewer preloaded tables | more columns in the prompt |
+| `router.maxPreloadedTables` | more context for the executor | smaller prompt |
 
 Without a cap, table routing once preloaded 27 tables and pushed a prompt to 137K tokens, more
 than the standard agent. Keep the cap.
@@ -60,7 +60,9 @@ than the standard agent. Keep the cap.
 
 `catalog.json` is built by `pnpm catalog` (`scripts/build-catalog.ts`) from the live
 Postgres instance: database comments, and every table in every schema with its comment.
-Migration and shared lookup tables are left out of the descriptions.
+Tables matching `catalog.descriptionIgnore` (migrations, shared lookup tables) are left out
+of the descriptions. Which databases are included comes from `postgres.databases` (an
+allowlist) or `postgres.exclude`.
 
 The description of each database is the only thing Jev reads to decide, so it is the
 strongest lever on accuracy. Rewrite weak descriptions by hand; rebuilding the catalog keeps
@@ -87,11 +89,62 @@ your edits.
 
 | File | Purpose |
 | --- | --- |
-| `bench/questions.json` | 100 questions written like a user would ask them |
-| `bench/answers.json` | gold answers: verified reference SQL, expected values, accepted alternatives |
+| `benchmark.questions` in `config.yaml` | the questions, written like a user would ask them |
+| `benchmark.answers` in `config.yaml` | gold answers: verified reference SQL, expected values, accepted alternatives |
 | `bench/run.ts` | runs every question in both modes, records latency, tokens and SQL |
 | `bench/grade.ts` | grades each answer and writes a report, a summary and charts |
 | `bench/refresh-answers.ts` | re-runs the gold SQL to detect data changes |
+
+### Bring your own benchmark
+
+Write two JSON files and point `benchmark.questions` and `benchmark.answers` at them. Every
+question id needs a matching answer.
+
+`questions.json`: what a user would ask. Write them before looking at the schemas, so they
+include questions your data cannot answer: that is how hallucinations get measured.
+
+```json
+[
+  { "id": 1, "category": "count", "question": "How many customers signed up in 2024?" },
+  { "id": 2, "category": "out_of_scope", "question": "What is the weather today?" }
+]
+```
+
+`answers.json`: the correct answer for each question.
+
+```json
+[
+  {
+    "id": 1,
+    "answerable": true,
+    "database": "sales",
+    "goldSql": "SELECT count(*) FROM customers WHERE extract(year FROM created_at) = 2024",
+    "expectedValues": [1834],
+    "expectedAnswer": "1,834 customers signed up in 2024",
+    "acceptable": [],
+    "notes": "Counts by signup date, not first purchase"
+  },
+  {
+    "id": 2,
+    "answerable": false,
+    "expectedValues": [],
+    "expectedAnswer": "Not available: there is no weather data",
+    "acceptable": []
+  }
+]
+```
+
+| Field | Meaning |
+| --- | --- |
+| `answerable` | `false` when the data cannot answer the question; the agent should say so |
+| `goldSql`, `database` | a query that produces the answer; `pnpm bench:refresh` re-runs it |
+| `expectedValues` | numbers or names that must appear in a correct answer |
+| `expectedAnswer` | the correct answer in one sentence, read by the judge |
+| `acceptable` | other answers that also count as correct (ambiguous questions) |
+| `category` | free text; the report and charts group accuracy by it |
+
+Run `pnpm bench:refresh` after writing the answers: it checks that every `goldSql` still
+returns its `expectedValues`.
 
 ### Grading
 
@@ -119,10 +172,25 @@ Results go to `bench/results/` (ignored by git): the raw runs, the graded runs, 
 report, a JSON summary for the UI, and the charts as SVG. The UI can export the report to PDF
 and each chart to PNG.
 
+### Costs
+
+Every run records what it cost, and `bench:grade` writes `<run>.costs.csv` with one row per
+question and mode:
+
+- **Executor**: the billed cost that OpenRouter returns in each response (`usage.cost`),
+  summed over every step of the tool loop. OpenAI's API does not report cost, so it is empty
+  with the `openai:` provider.
+- **Jev**: tokens and the list price (`marketCost`) that AI Gateway reports for both routing
+  calls. The judge calls made while grading are not included.
+
+The report adds total cost, cost per question and **cost per correct answer**, which is the
+fairest comparison when the two modes differ in accuracy.
+
 ### Known caveats
 
 - Latency includes the AI SDK's internal retries, so gateway outages inflate the numbers,
-  mostly the p95.
+  mostly the p95. The report also shows Jev's time inside the provider (from the gateway's
+  own timestamps), which is what a self-hosted Jev would cost in latency.
 - The standard agent sends about 75K tokens per question and can hit per-minute rate limits
   under concurrency. Failed runs are excluded from the metrics and can be retried with
   `--resume`.

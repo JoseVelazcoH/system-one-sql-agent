@@ -175,6 +175,21 @@ graded.sort((a, b) => a.id - b.id || a.mode.localeCompare(b.mode));
 const pct = (part: number, total: number) => (total ? `${((part / total) * 100).toFixed(1)}%` : '-');
 const seconds = (ms: number) => (Number.isNaN(ms) ? '-' : `${(ms / 1000).toFixed(2)} s`);
 const integer = (value: number) => (Number.isNaN(value) ? '-' : Math.round(value).toLocaleString('en-US'));
+const usd = (value: number | null) =>
+  value === null || Number.isNaN(value) ? '-' : `$${value < 0.01 ? value.toFixed(5) : value.toFixed(3)}`;
+
+type JevCall = NonNullable<RunRecord['jev']>['route'];
+const jevCalls = (record: GradedRecord): JevCall[] => (record.jev ? [record.jev.route, record.jev.tables] : []);
+
+/** Sum of per-run costs; null when any run lacks a reported cost (older runs or OpenAI direct). */
+function totalCost(
+  records: GradedRecord[],
+  pick: (costs: NonNullable<RunRecord['costs']>) => number | null | undefined,
+) {
+  const values = records.map((record) => (record.costs ? pick(record.costs) : null));
+  if (values.length === 0 || values.some((value) => value === null || value === undefined)) return null;
+  return (values as number[]).reduce((sum, value) => sum + value, 0);
+}
 
 function modeSummary(mode: AgentMode) {
   const runs = graded.filter((record) => record.mode === mode);
@@ -183,6 +198,10 @@ function modeSummary(mode: AgentMode) {
   const unanswerable = ok.filter((record) => !record.answerable);
   const durations = ok.map((record) => record.durationMs ?? 0);
   const queries = ok.flatMap((record) => record.queries ?? []);
+  const calls = ok.flatMap(jevCalls);
+  const providerMs = calls.map((call) => call.providerMs).filter((ms): ms is number => ms !== null);
+  const total = totalCost(ok, (costs) => costs.totalUsd);
+  const correct = ok.filter((record) => record.verdict === 'correct').length;
   return {
     mode,
     runs: runs.length,
@@ -204,6 +223,15 @@ function modeSummary(mode: AgentMode) {
     outTotal: integer(ok.reduce((sum, r) => sum + (r.outputTokens ?? 0), 0)),
     sqlErrors: pct(queries.filter((q) => q.error).length, queries.length),
     runsWithSqlError: pct(ok.filter((r) => (r.queries ?? []).some((q) => q.error)).length, ok.length),
+    jevProvider: calls.length ? seconds(mean(providerMs)) : '-',
+    jevTokens: calls.length
+      ? integer(mean(ok.map((r) => jevCalls(r).reduce((s, c) => s + c.inputTokens + c.outputTokens, 0))))
+      : '-',
+    executorCost: usd(totalCost(ok, (costs) => costs.executorUsd)),
+    jevCost: calls.length ? usd(totalCost(ok, (costs) => costs.jevUsd)) : '-',
+    totalCost: usd(total),
+    costPerQuestion: usd(total === null ? null : total / ok.length),
+    costPerCorrect: usd(total === null || correct === 0 ? null : total / correct),
   };
 }
 
@@ -224,10 +252,17 @@ const metricRows: [string, keyof ReturnType<typeof modeSummary>][] = [
   ['Avg database routing (Jev)', 'route'],
   ['Avg table routing + column preload (Jev)', 'tables'],
   ['Avg executor', 'executor'],
-  ['Avg input tokens', 'inAvg'],
-  ['Avg output tokens', 'outAvg'],
-  ['Total input tokens', 'inTotal'],
-  ['Total output tokens', 'outTotal'],
+  ['Avg Jev time inside the provider, per call', 'jevProvider'],
+  ['Avg input tokens (executor)', 'inAvg'],
+  ['Avg output tokens (executor)', 'outAvg'],
+  ['Total input tokens (executor)', 'inTotal'],
+  ['Total output tokens (executor)', 'outTotal'],
+  ['Avg Jev tokens per question', 'jevTokens'],
+  ['Total cost (executor)', 'executorCost'],
+  ['Total cost (Jev)', 'jevCost'],
+  ['Total cost', 'totalCost'],
+  ['Cost per question', 'costPerQuestion'],
+  ['Cost per correct answer', 'costPerCorrect'],
   ['SQL queries with error', 'sqlErrors'],
   ['Runs with at least one SQL error', 'runsWithSqlError'],
 ];
@@ -382,6 +417,42 @@ const chartSection = [
   '',
   ...Object.keys(charts).map((name) => `![${name}](${basename(chartsDir)}/${name}.svg)\n`),
 ].join('\n');
+
+const CSV_COLUMNS: [string, (record: GradedRecord) => unknown][] = [
+  ['id', (r) => r.id],
+  ['category', (r) => r.category],
+  ['answerable', (r) => r.answerable],
+  ['mode', (r) => r.mode],
+  ['model', (r) => r.model],
+  ['verdict', (r) => r.verdict],
+  ['duration_ms', (r) => r.durationMs?.toFixed(0)],
+  ['route_ms', (r) => r.timings?.routeMs?.toFixed(0)],
+  ['tables_ms', (r) => r.timings?.tablesMs?.toFixed(0)],
+  ['executor_ms', (r) => r.timings?.executorMs?.toFixed(0)],
+  ['jev_provider_ms', (r) => (r.jev ? jevCalls(r).reduce((s, c) => s + (c.providerMs ?? 0), 0) : undefined)],
+  ['executor_input_tokens', (r) => r.inputTokens],
+  ['executor_output_tokens', (r) => r.outputTokens],
+  ['jev_input_tokens', (r) => (r.jev ? jevCalls(r).reduce((s, c) => s + c.inputTokens, 0) : undefined)],
+  ['jev_output_tokens', (r) => (r.jev ? jevCalls(r).reduce((s, c) => s + c.outputTokens, 0) : undefined)],
+  ['executor_cost_usd', (r) => r.costs?.executorUsd],
+  ['jev_cost_usd', (r) => r.costs?.jevUsd],
+  ['total_cost_usd', (r) => r.costs?.totalUsd],
+  ['sql_queries', (r) => r.queries?.length],
+  ['sql_errors', (r) => r.queries?.filter((q) => q.error).length],
+  ['databases_used', (r) => r.databases?.length],
+];
+const csvValue = (value: unknown) => {
+  if (value === undefined || value === null) return '';
+  const text = String(value);
+  return /[",\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+};
+await writeFile(
+  `${base}.costs.csv`,
+  [
+    CSV_COLUMNS.map(([name]) => name).join(','),
+    ...graded.map((record) => CSV_COLUMNS.map(([, value]) => csvValue(value(record))).join(',')),
+  ].join('\n') + '\n',
+);
 
 await writeFile(`${base}.graded.jsonl`, graded.map((record) => JSON.stringify(record)).join('\n') + '\n');
 await writeFile(`${base}.md`, report.replace('## Summary', `${chartSection}\n## Summary`));

@@ -4,6 +4,37 @@ import { config } from './config.js';
 
 export type RouteMatch = { database: string; probability: number };
 
+export type JevUsage = {
+  inputTokens: number;
+  outputTokens: number;
+  /** List price reported by AI Gateway (marketCost), in USD. */
+  costUsd: number | null;
+  /** Time spent inside the provider, without gateway queueing or network. */
+  providerMs: number | null;
+};
+
+type GatewayMetadata = {
+  marketCost?: string;
+  routing?: {
+    modelAttempts?: { providerAttempts?: { success: boolean; startTime: number; endTime: number }[] }[];
+  };
+};
+
+function jevUsage(result: Awaited<ReturnType<typeof evaluate>>): JevUsage {
+  const gateway = result.providerMetadata?.gateway as GatewayMetadata | undefined;
+  const attempt = gateway?.routing?.modelAttempts
+    ?.flatMap((model) => model.providerAttempts ?? [])
+    .findLast((provider) => provider.success);
+  return {
+    inputTokens: result.usage.inputTokens ?? 0,
+    outputTokens: result.usage.outputTokens ?? 0,
+    costUsd: gateway?.marketCost === undefined ? null : Number(gateway.marketCost),
+    providerMs: attempt ? attempt.endTime - attempt.startTime : null,
+  };
+}
+
+export const NO_JEV_USAGE: JevUsage = { inputTokens: 0, outputTokens: 0, costUsd: 0, providerMs: 0 };
+
 export async function routeQuestion(question: string, catalog: DatabaseEntry[]) {
   const questions = Object.fromEntries(
     catalog.map((entry) => [
@@ -15,13 +46,13 @@ export async function routeQuestion(question: string, catalog: DatabaseEntry[]) 
     ]),
   );
 
-  const { answers } = await evaluate({
+  const result = await evaluate({
     model: config.routerModel,
     state: question,
     questions,
   });
 
-  const ranked: RouteMatch[] = Object.entries(answers)
+  const ranked: RouteMatch[] = Object.entries(result.answers)
     .map(([database, answer]) => ({
       database,
       probability: answer.type === 'boolean' ? answer.probability : 0,
@@ -31,6 +62,7 @@ export async function routeQuestion(question: string, catalog: DatabaseEntry[]) 
   return {
     selected: ranked.filter((match) => match.probability >= config.routerThreshold),
     ranked,
+    usage: jevUsage(result),
   };
 }
 
@@ -44,7 +76,7 @@ export async function routeTables(question: string, databases: DatabaseEntry[]) 
       .filter((table) => !MIGRATION_TABLE.test(table.name))
       .map((table) => ({ database: entry.name, table })),
   );
-  if (candidates.length === 0) return [];
+  if (candidates.length === 0) return { matches: [], usage: NO_JEV_USAGE };
 
   const questions = Object.fromEntries(
     candidates.map(({ database, table }, index) => [
@@ -56,15 +88,15 @@ export async function routeTables(question: string, databases: DatabaseEntry[]) 
     ]),
   );
 
-  const { answers } = await evaluate({
+  const result = await evaluate({
     model: config.routerModel,
     state: question,
     questions,
   });
 
-  return candidates
+  const matches = candidates
     .map(({ database, table }, index) => {
-      const answer = answers[`t${index}`];
+      const answer = result.answers[`t${index}`];
       return {
         database,
         table: table.name,
@@ -74,4 +106,5 @@ export async function routeTables(question: string, databases: DatabaseEntry[]) 
     .filter((match) => match.probability >= config.tableThreshold)
     .sort((a, b) => b.probability - a.probability)
     .slice(0, config.maxPreloadedTables);
+  return { matches, usage: jevUsage(result) };
 }

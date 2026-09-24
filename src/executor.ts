@@ -8,14 +8,35 @@ import { listColumns, readOnlyQuery, type ColumnInfo } from './db.js';
 const MAX_STEPS = 10;
 const OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1';
 
-function executorModel() {
+/** Sums the billed cost that OpenRouter reports in every response (`usage.cost`). */
+function costTrackingFetch(cost: { usd: number }): typeof fetch {
+  return async (input, init) => {
+    const response = await fetch(input, init);
+    const body = await response
+      .clone()
+      .json()
+      .catch(() => null);
+    if (typeof body?.usage?.cost === 'number') cost.usd += body.usage.cost;
+    return response;
+  };
+}
+
+function executorModel(cost: { usd: number | null }) {
   const { provider, modelId } = config.model;
-  if (!config.modelApiKey) throw new Error('Missing environment variable AI_MODEL_API_KEY');
-  if (provider === 'openai') return createOpenAI({ apiKey: config.modelApiKey })(modelId);
-  if (provider === 'openrouter') {
-    return createOpenAI({ apiKey: config.modelApiKey, baseURL: OPENROUTER_BASE_URL }).chat(modelId);
+  if (!config.modelApiKey) throw new Error(`Missing environment variable ${config.modelApiKeyEnv}`);
+  if (provider === 'openai') {
+    cost.usd = null;
+    return createOpenAI({ apiKey: config.modelApiKey })(modelId);
   }
-  throw new Error(`Unsupported AI_MODEL provider "${provider}". Use "openai" or "openrouter".`);
+  if (provider === 'openrouter') {
+    cost.usd = 0;
+    return createOpenAI({
+      apiKey: config.modelApiKey,
+      baseURL: OPENROUTER_BASE_URL,
+      fetch: costTrackingFetch(cost as { usd: number }),
+    }).chat(modelId);
+  }
+  throw new Error(`Unsupported executor.provider "${provider}". Use "openai" or "openrouter".`);
 }
 
 export type PreloadedColumns = Map<string, ColumnInfo[]>;
@@ -55,11 +76,12 @@ export async function answerQuestion(
   preloaded: PreloadedColumns = new Map(),
 ) {
   const queries: ExecutedQuery[] = [];
+  const cost: { usd: number | null } = { usd: null };
   const names = databases.map((db) => db.name) as [string, ...string[]];
   const databaseName = z.enum(names).describe('Database to use');
 
   const { text, totalUsage } = await generateText({
-    model: executorModel(),
+    model: executorModel(cost),
     temperature: config.modelTemperature,
     stopWhen: isStepCount(MAX_STEPS),
     instructions: [
@@ -101,5 +123,7 @@ export async function answerQuestion(
     queries,
     inputTokens: totalUsage.inputTokens ?? 0,
     outputTokens: totalUsage.outputTokens ?? 0,
+    /** Billed cost in USD when the provider reports it (OpenRouter), otherwise null. */
+    costUsd: cost.usd,
   };
 }
