@@ -4,6 +4,8 @@ node_modules/
 # Secrets and local configuration
 .env
 config.yaml
+config.*.yaml
+!config.example.yaml
 
 # Generated from the local Postgres instance (npm run catalog)
 catalog.json

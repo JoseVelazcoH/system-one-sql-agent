@@ -153,6 +153,21 @@ Results go to `bench/results/` (ignored by git): the raw runs, the graded runs, 
 report, a JSON summary for the UI, and the charts as SVG. The UI can export the report to PDF
 and each chart to PNG.
 
+Set `benchmark.watermark` in `config.yaml` to a png/svg path to stamp every chart (including the
+LinkedIn summary charts) with a small logo in the bottom-right corner. Leave it unset for
+unwatermarked charts. `pnpm bench:png -- <charts dir>` renders every SVG in a folder to PNG at 2x
+using a local headless Chrome/Chromium, useful for sharing charts where SVG is not supported.
+
+Use `--label` on `pnpm bench` to name the series shown in the report and charts, instead of the
+default mode name. This is how separate runs (e.g. different agent variants) get compared side
+by side after merging their result files with `bench:grade --results a.jsonl,b.jsonl,c.jsonl`:
+
+```sh
+pnpm bench -- --mode standard --label Sol
+pnpm bench -- --mode jev --label "Sol + Jev"
+pnpm bench -- --mode jev --config bench/luna.config.yaml --label "Luna + Jev"
+```
+
 ### Costs
 
 Every run records what it cost, and `bench:grade` writes `<run>.costs.csv` with one row per
@@ -175,3 +190,62 @@ fairest comparison when the two modes differ in accuracy.
 - The standard agent sends about 75K tokens per question and can hit per-minute rate limits
   under concurrency. Failed runs are excluded from the metrics and can be retried with
   `--resume`.
+
+## Best-of-N selection (experimental)
+
+`jev-bon` mode routes the question with Jev exactly like `jev` mode, then generates `N`
+candidate answers with the executor in parallel instead of one, and lets Jev pick the best.
+
+1. **Route** (`src/router.ts`): same database and table routing as `jev` mode. If no database
+   is selected, `jev-bon` returns the same "no data" answer as `jev` mode and skips
+   candidate generation entirely.
+2. **Generate** (`src/pipeline.ts`): `selector.candidates` calls to `answerQuestion` run with
+   `Promise.allSettled`. Candidate 0 uses the executor's normal settings; the rest use
+   `selector.temperature` and rotate through hints that nudge them toward different readings
+   of the question (default period, literal interpretation, official totals vs. sums). Failed
+   candidates are dropped; if every candidate fails, the first error is thrown.
+3. **Select** (`src/selector.ts`): consensus first, for free. If a strict majority of
+   candidates agree on the same top 3 numbers (rounded to 3 significant digits), or a
+   majority agree there is no data, that candidate wins with no Jev call. Otherwise Jev
+   answers one `choice` question over the candidates (shuffled, so label order carries no
+   signal), each described by its answer text, final SQL and a 5-row preview of its last
+   successful query.
+
+Cost and tokens in the benchmark and comparison UI are the sum of every candidate's executor
+usage plus the selector's Jev usage (reported separately under `jev.selector`), so `jev-bon`
+is directly comparable to `jev` and `standard` on cost per correct answer.
+
+### Config
+
+```yaml
+selector:
+  candidates: 4       # number of candidate answers generated in parallel
+  temperature: 0.7    # sampling temperature for candidates after the first
+```
+
+### Running the experiment
+
+`bench/run.ts` accepts `--config` to point at an alternate `config.yaml`, so `jev-bon` can be
+benchmarked with a different executor model without touching the default config:
+
+```sh
+pnpm bench -- --mode jev-bon --config config.luna.yaml \
+  --ids 9,17,31,33,55,74,79,92,54,51,1,2,3,4,5,6,18,19,20,21
+```
+
+The extra ids are 6 questions the existing `jev` run already answers correctly (1, 2, 3, 4,
+5, 6) and 4 unanswerable questions it already refuses correctly (18, 19, 20, 21), picked from
+`bench/results/2026-09-23T23-22-35-970Z.graded.jsonl`. They give the comparison a floor: if
+`jev-bon` regresses on questions `jev` already gets right, best-of-N is not paying for itself.
+
+`bench:grade` accepts a comma-separated `--results` list to merge the new run with the
+existing one before grading, and `--out` to name the merged output:
+
+```sh
+pnpm bench:grade -- \
+  --results bench/results/<jev-bon-run>.jsonl,bench/results/2026-09-23T23-22-35-970Z.jsonl \
+  --out jev-bon-vs-jev
+```
+
+If the merged files used different executor models for the same mode, the report and charts
+split that mode into one series per model, labeled `${mode} (${model})`.
