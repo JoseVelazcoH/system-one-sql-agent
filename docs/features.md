@@ -153,9 +153,8 @@ Results go to `bench/results/` (ignored by git): the raw runs, the graded runs, 
 report, a JSON summary for the UI, and the charts as SVG. The UI can export the report to PDF
 and each chart to PNG.
 
-Set `benchmark.watermark` in `config.yaml` to a png/svg path to stamp every chart (including the
-LinkedIn summary charts) with a small logo in the bottom-right corner. Leave it unset for
-unwatermarked charts. `pnpm bench:png -- <charts dir>` renders every SVG in a folder to PNG at 2x
+Set `benchmark.watermark` in `config.yaml` to a png/svg path to stamp every chart with a small
+logo in the top-right corner. Leave it unset for unwatermarked charts. `pnpm bench:png -- <charts dir>` renders every SVG in a folder to PNG at 2x
 using a local headless Chrome/Chromium, useful for sharing charts where SVG is not supported.
 
 Use `--label` on `pnpm bench` to name the series shown in the report and charts, instead of the

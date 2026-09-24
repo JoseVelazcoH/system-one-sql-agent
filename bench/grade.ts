@@ -19,7 +19,7 @@ import { pathToFileURL } from 'node:url';
 import { experimental_evaluate as evaluate } from 'ai';
 import { config } from '../src/config.js';
 import type { AgentMode } from '../src/pipeline.js';
-import { COLORS, groupedBarChart, linkedinAccuracyChart, summaryChart } from './charts.js';
+import { COLORS, groupedBarChart } from './charts.js';
 import {
   latestResults,
   loadAnswers,
@@ -483,17 +483,6 @@ function usdLabel(value: number) {
   return `$${value.toFixed(decimals)}`;
 }
 
-// Categories with the biggest accuracy gap between series, for the LinkedIn accuracy card.
-const categorySpread = categories.map((category) => {
-  const values = seriesKeys
-    .map((key) => accuracyOf(completed(key, (r) => r.category === category)))
-    .filter((v): v is number => v !== null);
-  return { category, spread: values.length > 1 ? Math.max(...values) - Math.min(...values) : 0 };
-});
-const topCategories = [...categorySpread]
-  .sort((a, b) => b.spread - a.spread)
-  .slice(0, 4)
-  .map((entry) => entry.category);
 
 // --size WxH changes the card size of the grouped charts, e.g. 1200x675 for 16:9.
 const sizeMatch = typeof args.size === 'string' ? args.size.match(/^(\d+)x(\d+)$/) : null;
@@ -552,30 +541,6 @@ const charts: Record<string, string> = {
     series: seriesFor((key) => [totalCost(completed(key), (costs) => costs.totalUsd)]),
     format: usdLabel,
     tickFormat: usdLabel,
-  }),
-  'linkedin-summary': summaryChart({
-    headline: seriesKeys.map(seriesLabel).join(' vs '),
-    subtitle: `${byQuestion.length} questions`,
-    accuracy: seriesKeys.map((key) => ({
-      name: seriesLabel(key),
-      color: seriesStyle.get(key)!.color,
-      value: accuracyOf(completed(key)),
-    })),
-    cost: seriesKeys.map((key) => ({
-      name: seriesLabel(key),
-      color: seriesStyle.get(key)!.color,
-      value: totalCost(completed(key), (costs) => costs.totalUsd),
-    })),
-    costFormat: usdLabel,
-  }),
-  'linkedin-accuracy': linkedinAccuracyChart({
-    title: 'Accuracy: all questions vs biggest gaps by category',
-    subtitle: `${byQuestion.length} questions`,
-    groups: ['All', ...topCategories.map((category) => CATEGORY_LABELS[category] ?? category)],
-    series: seriesFor((key) => [
-      accuracyOf(completed(key)),
-      ...topCategories.map((category) => accuracyOf(completed(key, (r) => r.category === category))),
-    ]),
   }),
 };
 
