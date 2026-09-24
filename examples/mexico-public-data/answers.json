@@ -467,13 +467,17 @@
   },
   {
     "id": 37,
-    "answerable": false,
-    "database": null,
-    "goldSql": null,
-    "expectedValues": [],
-    "expectedAnswer": "Not available: the DENUE establishment directory database (which would list individual restaurants by municipality) is empty (0 rows in all its tables).",
-    "notes": "Verified stg_est_jal, stg_est_ent, v_establecimientos, v_establecimientos_jalisco all return 0 rows.",
-    "acceptable": []
+    "answerable": true,
+    "database": "censos_economicos",
+    "goldSql": "SELECT sum(unidades_economicas) FROM vw_economico_municipal_2023 WHERE nom_ent = 'Jalisco' AND municipio = 'Puerto Vallarta' AND estrato = 'Suma de estratos' AND actividad_codigo IN ('722511','722512','722513','722514','722516','722517','722518')",
+    "expectedValues": [
+      2012
+    ],
+    "expectedAnswer": "Puerto Vallarta has 2,012 restaurants (SCIAN 722511-722518, excluding cafeterias) per the 2024 Economic Census, reference year 2023.",
+    "notes": "Rows are split by size stratum plus a total row (estrato = Suma de estratos); summing all rows double counts.",
+    "acceptable": [
+      "2,533 food and beverage preparation units if cafeterias, snack bars and similar are included (SCIAN 7225)"
+    ]
   },
   {
     "id": 38,
@@ -491,15 +495,15 @@
   },
   {
     "id": 39,
-    "answerable": false,
-    "database": null,
-    "goldSql": null,
-    "expectedValues": [],
-    "expectedAnswer": "Not available: DENUE (establishment directory, which would allow counting 'tiendas de abarrotes' specifically in Guadalajara) is empty; the Economic Census only has state/municipal aggregates by SCIAN category, not usable for this precise store-type + city combination reliably at that granularity in a single query without ambiguity.",
-    "acceptable": [
-      "70,064 units statewide (not Guadalajara-specific) classified under 'Comercio al por menor de abarrotes, alimentos, bebidas, hielo y tabaco' (SCIAN 461, includes more than just tiendas de abarrotes) from censos_economicos vw_economico_estatal_2023, if a state-level abarrotes-related answer is acceptable"
+    "answerable": true,
+    "database": "censos_economicos",
+    "goldSql": "SELECT unidades_economicas FROM vw_economico_municipal_2023 WHERE nom_ent = 'Jalisco' AND municipio = 'Guadalajara' AND estrato = 'Suma de estratos' AND actividad_codigo = '461110'",
+    "expectedValues": [
+      6150
     ],
-    "notes": "DENUE (municipality + establishment-level) is empty; censos_economicos has municipal breakdowns but the closest SCIAN category (461) bundles abarrotes with other small grocery retail types, not a clean 'abarrotes' figure."
+    "expectedAnswer": "Guadalajara has 6,150 grocery stores (tiendas de abarrotes, ultramarinos y misceláneas, SCIAN 461110) per the 2024 Economic Census, reference year 2023.",
+    "acceptable": [],
+    "notes": "Rows are split by size stratum plus a total row (estrato = Suma de estratos); summing all rows double counts (12,300)."
   },
   {
     "id": 40,
