@@ -4,32 +4,13 @@ A deeper guide to how the agent works, how to tune it, and how the benchmark mea
 
 ## How a question flows
 
-```
-question
-   │
-   ▼
-┌──────────────────────┐   one boolean question per database
-│ 1. Database routing  │── Jev: "does this database contain the data?"
-└──────────────────────┘   keeps every database >= databaseThreshold
-   │  (none selected → "no database can answer", the LLM is never called)
-   ▼
-┌──────────────────────┐   one boolean question per table of the chosen databases
-│ 2. Table routing     │── Jev: "is this table needed to write the query?"
-└──────────────────────┘   keeps the top maxPreloadedTables >= tableThreshold
-   │
-   ▼
-┌──────────────────────┐   columns of the selected tables are read from Postgres
-│ 3. Column preload    │   and written into the executor prompt
-└──────────────────────┘
-   │
-   ▼
-┌──────────────────────┐   LLM with two tools: listColumns and runQuery
-│ 4. Execution         │   sees only the routed databases
-└──────────────────────┘
-   │
-   ▼
-answer + SQL + timings + tokens
-```
+<p align="center">
+  <img src="../assets/flow.png" width="820" alt="How a question flows: database routing and table routing with Jev, column preload from Postgres, then execution by the LLM" />
+</p>
+
+The diagram source is [`docs/diagrams/flow.html`](diagrams/flow.html). To re-render it after
+editing, take a 2x screenshot of the page (for example with headless Chrome and
+`--force-device-scale-factor=2`) and save it as `assets/flow.png`.
 
 The standard agent used for comparison skips steps 1 to 3: it receives every database in the
 catalog and decides by itself.

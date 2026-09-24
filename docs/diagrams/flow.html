@@ -1,0 +1,405 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Flow diagram</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
+    />
+    <style>
+      :root {
+        --ink: #0d0d0d;
+        --surface: #eff0f3;
+        --panel: #ffffff;
+        --heading: #171717;
+        --body: #2a2a2a;
+        --muted: #737373;
+        --jev: #ff8e3c;
+        --jev-soft: #fff3ea;
+        --llm: #d9376e;
+        --llm-soft: #fdecf2;
+        --db: #3a86ff;
+        --db-soft: #eaf2ff;
+        --sans: 'Inter', system-ui, sans-serif;
+        --mono: 'JetBrains Mono', ui-monospace, monospace;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        background: var(--panel);
+        font-family: var(--sans);
+        color: var(--body);
+      }
+
+      .canvas {
+        width: 1040px;
+        padding: 40px 48px 48px;
+        background: var(--panel);
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: 560px 1fr;
+        column-gap: 40px;
+        align-items: center;
+      }
+
+      /* Terminals: question in, answer out */
+      .terminal {
+        grid-column: 1;
+        justify-self: center;
+        display: inline-flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px 20px;
+        background: var(--surface);
+        border: 2px solid var(--ink);
+        border-radius: 999px;
+        box-shadow: 4px 4px 0 var(--ink);
+        font: 600 15px/20px var(--sans);
+        color: var(--heading);
+      }
+
+      .terminal__icon {
+        display: grid;
+        place-items: center;
+        width: 28px;
+        height: 28px;
+        border: 2px solid var(--ink);
+        border-radius: 999px;
+        background: var(--jev);
+        font: 700 14px/1 var(--mono);
+      }
+
+      .terminal--out .terminal__icon {
+        background: var(--panel);
+      }
+
+      .terminal__meta {
+        font: 500 12px/16px var(--mono);
+        color: var(--muted);
+      }
+
+      /* Connectors */
+      .connector {
+        grid-column: 1;
+        position: relative;
+        height: 40px;
+      }
+
+      .connector::before {
+        content: '';
+        position: absolute;
+        left: calc(50% - 1px);
+        top: 0;
+        bottom: 8px;
+        border-left: 2px solid var(--ink);
+      }
+
+      .connector::after {
+        content: '';
+        position: absolute;
+        left: calc(50% - 7px);
+        bottom: 0;
+        border-left: 7px solid transparent;
+        border-right: 7px solid transparent;
+        border-top: 9px solid var(--ink);
+      }
+
+      /* Steps */
+      .step {
+        grid-column: 1;
+        display: grid;
+        grid-template-columns: 52px 1fr;
+        gap: 16px;
+        align-items: start;
+        padding: 18px 20px;
+        background: var(--panel);
+        border: 2px solid var(--ink);
+        border-radius: 14px;
+        box-shadow: 5px 5px 0 var(--ink);
+      }
+
+      .step--jev {
+        background: var(--jev-soft);
+      }
+
+      .step--db {
+        background: var(--db-soft);
+      }
+
+      .step--llm {
+        background: var(--llm-soft);
+      }
+
+      .step__number {
+        display: grid;
+        place-items: center;
+        width: 52px;
+        height: 52px;
+        border: 2px solid var(--ink);
+        border-radius: 12px;
+        font: 700 22px/1 var(--mono);
+        color: var(--ink);
+      }
+
+      .step--jev .step__number {
+        background: var(--jev);
+      }
+
+      .step--db .step__number {
+        background: var(--db);
+        color: #fff;
+      }
+
+      .step--llm .step__number {
+        background: var(--llm);
+        color: #fff;
+      }
+
+      .step__head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+      }
+
+      .step__title {
+        margin: 0;
+        font: 700 18px/24px var(--sans);
+        letter-spacing: -0.3px;
+        color: var(--heading);
+      }
+
+      .chip {
+        padding: 3px 9px;
+        border: 1.5px solid var(--ink);
+        border-radius: 6px;
+        background: var(--panel);
+        font: 700 11px/16px var(--mono);
+        letter-spacing: 0.6px;
+        text-transform: uppercase;
+        white-space: nowrap;
+      }
+
+      .step__prompt {
+        margin: 8px 0 0;
+        padding: 7px 10px;
+        background: var(--panel);
+        border: 1.5px dashed rgba(13, 13, 13, 0.35);
+        border-radius: 8px;
+        font: 500 13px/19px var(--mono);
+        color: var(--body);
+      }
+
+      .step__detail {
+        margin: 8px 0 0;
+        font: 400 14px/21px var(--sans);
+        color: var(--body);
+      }
+
+      .step__detail code {
+        padding: 1px 5px;
+        background: rgba(13, 13, 13, 0.06);
+        border-radius: 4px;
+        font: 600 12.5px/1 var(--mono);
+        color: var(--ink);
+      }
+
+      /* Side notes, aligned with the step on their left */
+      .note {
+        grid-column: 2;
+        position: relative;
+        padding: 14px 16px;
+        border: 2px solid var(--ink);
+        border-radius: 12px;
+        background: var(--surface);
+        font: 400 13px/19px var(--sans);
+        color: var(--body);
+      }
+
+      .note::before {
+        content: '';
+        position: absolute;
+        left: -42px;
+        top: 50%;
+        width: 40px;
+        border-top: 2px dashed var(--ink);
+      }
+
+      .note__label {
+        display: block;
+        margin-bottom: 4px;
+        font: 700 11px/16px var(--mono);
+        letter-spacing: 0.6px;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+
+      .note strong {
+        color: var(--heading);
+      }
+
+      .note--exit {
+        background: var(--panel);
+        box-shadow: 4px 4px 0 var(--ink);
+      }
+
+      .note--exit .note__label {
+        color: var(--llm);
+      }
+
+      .spacer {
+        grid-column: 2;
+      }
+
+      /* Legend */
+      .legend {
+        display: flex;
+        gap: 22px;
+        margin-top: 36px;
+        padding-top: 20px;
+        border-top: 2px solid var(--surface);
+        font: 500 12px/16px var(--mono);
+        color: var(--muted);
+      }
+
+      .legend span {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .legend i {
+        width: 14px;
+        height: 14px;
+        border: 2px solid var(--ink);
+        border-radius: 4px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="canvas">
+      <div class="grid">
+        <div class="terminal">
+          <span class="terminal__icon">?</span>
+          <span>User question</span>
+          <span class="terminal__meta">"How many inhabitants does Zapopan have?"</span>
+        </div>
+        <div class="spacer"></div>
+
+        <div class="connector"></div>
+        <div class="spacer"></div>
+
+        <section class="step step--jev">
+          <span class="step__number">1</span>
+          <div>
+            <div class="step__head">
+              <h2 class="step__title">Database routing</h2>
+              <span class="chip">System 1 · Jev</span>
+            </div>
+            <p class="step__prompt">"Does this database contain the data?"</p>
+            <p class="step__detail">
+              One boolean per database, all in a single call. Keeps every database
+              &ge; <code>databaseThreshold</code>.
+            </p>
+          </div>
+        </section>
+        <aside class="note note--exit">
+          <span class="note__label">No database selected</span>
+          The agent answers <strong>"no database can answer this"</strong> and the LLM is
+          <strong>never called</strong>. This is what keeps hallucinations at zero.
+        </aside>
+
+        <div class="connector"></div>
+        <div class="spacer"></div>
+
+        <section class="step step--jev">
+          <span class="step__number">2</span>
+          <div>
+            <div class="step__head">
+              <h2 class="step__title">Table routing</h2>
+              <span class="chip">System 1 · Jev</span>
+            </div>
+            <p class="step__prompt">"Is this table needed to write the query?"</p>
+            <p class="step__detail">
+              One boolean per table of the chosen databases. Keeps the top
+              <code>maxPreloadedTables</code> &ge; <code>tableThreshold</code>.
+            </p>
+          </div>
+        </section>
+        <aside class="note">
+          <span class="note__label">Why booleans</span>
+          Overlapping databases can <strong>all</strong> score high. A single choice would split
+          the probability between them.
+        </aside>
+
+        <div class="connector"></div>
+        <div class="spacer"></div>
+
+        <section class="step step--db">
+          <span class="step__number">3</span>
+          <div>
+            <div class="step__head">
+              <h2 class="step__title">Column preload</h2>
+              <span class="chip">PostgreSQL</span>
+            </div>
+            <p class="step__detail">
+              Columns, types and comments of the selected tables are read from Postgres and written
+              into the executor prompt.
+            </p>
+          </div>
+        </section>
+        <aside class="note">
+          <span class="note__label">Effect</span>
+          The LLM writes the SQL <strong>on the first try</strong> instead of guessing column
+          names.
+        </aside>
+
+        <div class="connector"></div>
+        <div class="spacer"></div>
+
+        <section class="step step--llm">
+          <span class="step__number">4</span>
+          <div>
+            <div class="step__head">
+              <h2 class="step__title">Execution</h2>
+              <span class="chip">System 2 · LLM</span>
+            </div>
+            <p class="step__detail">
+              Tools <code>listColumns</code> and <code>runQuery</code>, restricted to the routed
+              databases. Every query runs <code>READ ONLY</code> and is rolled back.
+            </p>
+          </div>
+        </section>
+        <aside class="note">
+          <span class="note__label">Result</span>
+          <strong>~6x fewer input tokens</strong> than an agent that reads every schema.
+        </aside>
+
+        <div class="connector"></div>
+        <div class="spacer"></div>
+
+        <div class="terminal terminal--out">
+          <span class="terminal__icon">✓</span>
+          <span>Answer</span>
+          <span class="terminal__meta">+ SQL · timings · tokens · cost</span>
+        </div>
+        <div class="spacer"></div>
+      </div>
+
+      <div class="legend">
+        <span><i style="background: var(--jev)"></i>System 1: fast, typed decisions</span>
+        <span><i style="background: var(--db)"></i>Database</span>
+        <span><i style="background: var(--llm)"></i>System 2: deliberate reasoning</span>
+      </div>
+    </div>
+  </body>
+</html>

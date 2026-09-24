@@ -1,0 +1,247 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Flow diagram (compact)</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600;700&display=swap"
+    />
+    <style>
+      :root {
+        --ink: #0d0d0d;
+        --surface: #eff0f3;
+        --panel: #ffffff;
+        --heading: #171717;
+        --body: #2a2a2a;
+        --muted: #737373;
+        --jev: #ff8e3c;
+        --jev-soft: #fff3ea;
+        --llm: #d9376e;
+        --llm-soft: #fdecf2;
+        --db: #3a86ff;
+        --db-soft: #eaf2ff;
+        --sans: 'Inter', system-ui, sans-serif;
+        --mono: 'JetBrains Mono', ui-monospace, monospace;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+      }
+
+      /* LinkedIn's recommended landscape size */
+      .canvas {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 1200px;
+        height: 627px;
+        padding: 0 24px;
+        background: var(--panel);
+        font-family: var(--sans);
+      }
+
+      .flow {
+        display: flex;
+        align-items: center;
+      }
+
+      /* The label hangs below the circle so the circle sits on the arrows' line. */
+      .terminal {
+        position: relative;
+        display: flex;
+        justify-content: center;
+        width: 72px;
+        font: 600 16px/20px var(--sans);
+        color: var(--heading);
+      }
+
+      .terminal__label {
+        position: absolute;
+        top: calc(100% + 12px);
+        white-space: nowrap;
+      }
+
+      .terminal__icon {
+        display: grid;
+        place-items: center;
+        width: 60px;
+        height: 60px;
+        border: 2px solid var(--ink);
+        border-radius: 999px;
+        background: var(--surface);
+        box-shadow: 4px 4px 0 var(--ink);
+        font: 700 26px/1 var(--mono);
+      }
+
+      .arrow {
+        position: relative;
+        flex: none;
+        width: 22px;
+        height: 2px;
+        margin: 0 8px 0 6px;
+        background: var(--ink);
+      }
+
+      .arrow::after {
+        content: '';
+        position: absolute;
+        right: -2px;
+        top: -6px;
+        border-top: 7px solid transparent;
+        border-bottom: 7px solid transparent;
+        border-left: 9px solid var(--ink);
+      }
+
+      /* Wide, short cards: a horizontal rectangle reads as a pipeline stage. */
+      .step {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        width: 212px;
+        height: 168px;
+        padding: 16px 16px 14px;
+        border: 2px solid var(--ink);
+        border-radius: 14px;
+        box-shadow: 5px 5px 0 var(--ink);
+      }
+
+      .step--jev {
+        background: var(--jev-soft);
+      }
+
+      .step--db {
+        background: var(--db-soft);
+      }
+
+      .step--llm {
+        background: var(--llm-soft);
+      }
+
+      .step__head {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .step__number {
+        flex: none;
+        display: grid;
+        place-items: center;
+        width: 34px;
+        height: 34px;
+        border: 2px solid var(--ink);
+        border-radius: 9px;
+        font: 700 17px/1 var(--mono);
+      }
+
+      .step--jev .step__number {
+        background: var(--jev);
+      }
+
+      .step--db .step__number {
+        background: var(--db);
+        color: #fff;
+      }
+
+      .step--llm .step__number {
+        background: var(--llm);
+        color: #fff;
+      }
+
+      .step__title {
+        margin: 0;
+        font: 700 17px/21px var(--sans);
+        letter-spacing: -0.3px;
+        color: var(--heading);
+      }
+
+      .step__detail {
+        margin: 0;
+        font: 400 13.5px/19px var(--sans);
+        color: var(--body);
+        text-align: center;
+      }
+
+      .chip {
+        align-self: center;
+        margin-top: auto;
+        padding: 3px 8px;
+        border: 1.5px solid var(--ink);
+        border-radius: 6px;
+        background: var(--panel);
+        font: 700 10.5px/15px var(--mono);
+        letter-spacing: 0.5px;
+        text-transform: uppercase;
+        white-space: nowrap;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="canvas">
+      <div class="flow">
+        <div class="terminal">
+          <span class="terminal__icon" style="background: var(--jev)">?</span>
+          <span class="terminal__label">Question</span>
+        </div>
+
+        <span class="arrow"></span>
+
+        <section class="step step--jev">
+          <div class="step__head">
+            <span class="step__number">1</span>
+            <h2 class="step__title">Pick databases</h2>
+          </div>
+          <p class="step__detail">"Does this database contain the data?"</p>
+          <span class="chip">System 1 · Jev</span>
+        </section>
+
+        <span class="arrow"></span>
+
+        <section class="step step--jev">
+          <div class="step__head">
+            <span class="step__number">2</span>
+            <h2 class="step__title">Pick tables</h2>
+          </div>
+          <p class="step__detail">"Is this table needed to write the query?"</p>
+          <span class="chip">System 1 · Jev</span>
+        </section>
+
+        <span class="arrow"></span>
+
+        <section class="step step--db">
+          <div class="step__head">
+            <span class="step__number">3</span>
+            <h2 class="step__title">Load columns</h2>
+          </div>
+          <p class="step__detail">Only the chosen tables go into the prompt</p>
+          <span class="chip">PostgreSQL</span>
+        </section>
+
+        <span class="arrow"></span>
+
+        <section class="step step--llm">
+          <div class="step__head">
+            <span class="step__number">4</span>
+            <h2 class="step__title">Write the SQL</h2>
+          </div>
+          <p class="step__detail">Read-only queries on the routed databases</p>
+          <span class="chip">System 2 · LLM</span>
+        </section>
+
+        <span class="arrow"></span>
+
+        <div class="terminal">
+          <span class="terminal__icon">✓</span>
+          <span class="terminal__label">Answer</span>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>
