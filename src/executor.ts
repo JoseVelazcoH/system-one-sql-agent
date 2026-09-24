@@ -58,22 +58,35 @@ function describeDatabases(databases: DatabaseEntry[], preloaded: PreloadedColum
       const tables = db.tables
         .map((table) => describeTable(table, columns.filter((c) => c.table === table.name)))
         .join('\n');
-      return `Database "${db.name}":\n${tables}`;
+      return `Database "${db.name}": ${db.description}\n${tables}`;
     })
     .join('\n\n');
 }
+
+/** Rows kept in memory for the best-of-N selector; capped so results stay small. */
+const PREVIEW_ROW_LIMIT = 5;
 
 export type ExecutedQuery = {
   database: string;
   sql: string;
   rowCount?: number;
   error?: string;
+  /** First rows of the result, capped at PREVIEW_ROW_LIMIT. Only kept for successful queries. */
+  preview?: Record<string, unknown>[];
+};
+
+export type AnswerQuestionOptions = {
+  /** Overrides config.modelTemperature; used by the best-of-N selector to diversify candidates. */
+  temperature?: number;
+  /** Extra instruction appended to the system prompt, used by the best-of-N selector to diversify candidates. */
+  hint?: string;
 };
 
 export async function answerQuestion(
   question: string,
   databases: DatabaseEntry[],
   preloaded: PreloadedColumns = new Map(),
+  options: AnswerQuestionOptions = {},
 ) {
   const queries: ExecutedQuery[] = [];
   const cost: { usd: number | null } = { usd: null };
@@ -82,7 +95,7 @@ export async function answerQuestion(
 
   const { text, totalUsage } = await generateText({
     model: executorModel(cost),
-    temperature: config.modelTemperature,
+    temperature: options.temperature ?? config.modelTemperature,
     stopWhen: isStepCount(MAX_STEPS),
     instructions: [
       'You answer questions by querying PostgreSQL. Queries run in a read-only transaction.',
@@ -90,6 +103,8 @@ export async function answerQuestion(
       'Tables listed with their columns are the most relevant ones: write the query directly with those columns.',
       'Never guess column names. For any other table, call listColumns before querying it.',
       'Answer in the same language as the question and mention which database you used.',
+      'If no table measures exactly what the question asks, or the period asked is not covered, say that the data is not available. Never answer with a similar or proxy indicator (for example a different population or a different kind of record).',
+      ...(options.hint ? ['', options.hint] : []),
       '',
       describeDatabases(databases, preloaded),
     ].join('\n'),
@@ -106,7 +121,12 @@ export async function answerQuestion(
         execute: async ({ database, sql }) => {
           try {
             const result = await readOnlyQuery(database, sql);
-            queries.push({ database, sql, rowCount: result.rowCount });
+            queries.push({
+              database,
+              sql,
+              rowCount: result.rowCount,
+              preview: (result.rows as Record<string, unknown>[]).slice(0, PREVIEW_ROW_LIMIT),
+            });
             return result;
           } catch (error) {
             const message = (error as Error).message;

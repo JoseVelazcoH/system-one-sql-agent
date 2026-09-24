@@ -20,7 +20,8 @@ type GatewayMetadata = {
   };
 };
 
-function jevUsage(result: Awaited<ReturnType<typeof evaluate>>): JevUsage {
+/** Extracts cost/latency/tokens from an `evaluate` result the same way for every Jev call site. */
+export function jevUsage(result: Awaited<ReturnType<typeof evaluate>>): JevUsage {
   const gateway = result.providerMetadata?.gateway as GatewayMetadata | undefined;
   const attempt = gateway?.routing?.modelAttempts
     ?.flatMap((model) => model.providerAttempts ?? [])
