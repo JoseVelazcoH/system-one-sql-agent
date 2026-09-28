@@ -95,7 +95,7 @@ This is only done for small fixes.
 
 ### Commits
 
-Commits must follow the [commit convention](docs/commit-convention.md). If a pull request
+Commits must follow the [commit convention](commits-convention.md). If a pull request
 does not follow it, it will be rejected and you will be asked to correct the commit history.
 
 ## AI

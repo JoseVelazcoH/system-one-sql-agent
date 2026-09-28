@@ -28,7 +28,7 @@
 
 ## Review checklist
 
-- [ ] Follows [commit convention](../docs/commit-convention.md)
+- [ ] Follows [commit convention](../docs/commits-convention.md)
 - [ ] Database access stays read-only (goes through `readOnlyQuery`)
 - [ ] No secrets, `.env`, `catalog.json` or `bench/results/` committed
 - [ ] Docs updated if behavior or configuration changed
