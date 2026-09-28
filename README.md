@@ -189,10 +189,12 @@ The repo ships an example dataset about public statistics of Mexico in
 The UI has no authentication and `/bench` can start paid LLM runs, so it only listens on
 localhost by default. Put it behind authentication before exposing it with `HOST=0.0.0.0`.
 
-## Contributing
+## Community
 
-Contributions are welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) to get started, and please
-follow our [Code of Conduct](CODE_OF_CONDUCT.md).
+- [Contributing](docs/CONTRIBUTING.md)
+- [Commit convention](docs/commits-convention.md)
+- [Code of conduct](docs/CODE_OF_CONDUCT.md)
+- [Security policy](docs/SECURITY.md)
 
 ## License
 
